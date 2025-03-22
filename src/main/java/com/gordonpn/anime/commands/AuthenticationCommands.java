@@ -6,6 +6,7 @@ import com.gordonpn.anime.config.PKCEStateHolder;
 import com.gordonpn.anime.handler.OAuth2ServerHandler;
 import com.gordonpn.anime.models.PKCEPair;
 import com.gordonpn.anime.models.TokenResponse;
+import com.gordonpn.anime.repository.TokenRepository;
 import com.gordonpn.anime.service.TokenExchangeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,7 @@ public class AuthenticationCommands {
     private final OAuth2ServerHandler oauth2ServerHandler;
     private final PKCEStateHolder pkceStateHolder;
     private final TokenExchangeService tokenExchangeService;
+    private final TokenRepository tokenRepository;
 
     @ShellMethod(key = "login", value = "Authenticate via OAuth with MyAnimeList")
     public String login() throws IOException {
@@ -36,6 +38,8 @@ public class AuthenticationCommands {
         TokenResponse tokens = tokenExchangeService.exchangeCode(authCode, codeVerifier);
         authorizationState.setTokenResponse(tokens);
 
+        saveTokens(tokens);
+
         return "Successfully authenticated!";
     }
 
@@ -46,6 +50,13 @@ public class AuthenticationCommands {
         TokenResponse tokens = tokenExchangeService.refreshToken(refreshToken);
         authorizationState.setTokenResponse(tokens);
 
+        saveTokens(tokens);
+
         return "Successfully refreshed token!";
+    }
+
+    private void saveTokens(TokenResponse tokens) {
+        log.info("Persisting tokens to database");
+        tokenRepository.save(tokens);
     }
 }
