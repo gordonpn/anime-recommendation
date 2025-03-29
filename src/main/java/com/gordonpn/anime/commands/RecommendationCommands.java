@@ -2,8 +2,10 @@ package com.gordonpn.anime.commands;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gordonpn.anime.models.AnimeDetails;
 import com.gordonpn.anime.models.Datum;
 import com.gordonpn.anime.models.SeasonalAnime;
+import com.gordonpn.anime.models.SeasonalAnimeResult;
 import com.gordonpn.anime.service.AnimeService;
 import com.gordonpn.anime.service.RecommendationService;
 import lombok.RequiredArgsConstructor;
@@ -15,8 +17,11 @@ import org.springframework.shell.standard.ShellOption;
 
 import java.time.Year;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 @ShellComponent
 @RequiredArgsConstructor
@@ -39,7 +44,7 @@ public class RecommendationCommands {
         var seasons = List.of("winter", "spring", "summer", "fall");
         var years = Integer.parseInt(numYears);
 
-        var allData = new ArrayList<>();
+        var allData = new ArrayList<Datum>();
         var currentYear = Year.now().getValue();
         for (var i = 0; i < years; i++) {
             for (String season : seasons) {
@@ -48,7 +53,25 @@ public class RecommendationCommands {
                 allData.addAll(data);
             }
         }
-        return objectMapper.writeValueAsString(allData);
+
+        Set<SeasonalAnimeResult> sortedResult = new TreeSet<>(Comparator.<SeasonalAnimeResult>comparingDouble(a ->
+                a.getMean() == null ? Double.MIN_VALUE : a.getMean()).reversed());
+
+        for (Datum datum : allData) {
+            AnimeDetails animeDetails = animeService.getAnimeById(datum.getNode().getId());
+            Double meanScore = animeDetails.getMean();
+            SeasonalAnimeResult seasonalAnimeResult = SeasonalAnimeResult.builder()
+                    .id(datum.getNode().getId())
+                    .title(datum.getNode().getTitle())
+                    .mean(meanScore)
+                    .build();
+
+            sortedResult.add(seasonalAnimeResult);
+        }
+
+        log.info("Sorted: {}", sortedResult);
+
+        return objectMapper.writeValueAsString(sortedResult);
     }
 
     @ShellMethod(key = "suggestions", value = "Suggestions command")

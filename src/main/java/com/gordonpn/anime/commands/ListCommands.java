@@ -16,7 +16,7 @@ import org.springframework.shell.standard.ShellOption;
 public class ListCommands {
     private final UserListService userListService;
 
-    @ShellMethod(key = "list", value = "Test command")
+    @ShellMethod(key = "list", value = "List all completed animes")
     public AnimeList list(@ShellOption(defaultValue = "@me") String userName) throws JsonProcessingException {
         AnimeList listByUserName = userListService.getListByUserName(userName, Status.COMPLETED);
         log.info("List length fetched: {}", listByUserName.getData().size());

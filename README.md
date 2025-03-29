@@ -17,4 +17,6 @@ To run the app
 ## To-do
 
 - [x] Persist the token, to reuse on next run
-- [ ]
+- [x] Persist fetched anime details for certain time, to avoid unnecessary refetches
+- [ ] Check the sync status table on start and skip is unnecessary
+- [ ] Fetch anime details for each anime in the user list and persist

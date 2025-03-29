@@ -47,10 +47,10 @@ public class AnimeService {
                 .toEntity(String.class)
                 .getBody();
 
-        log.info("Seasonal anime: {}", body);
+        log.debug("Seasonal anime: {}", body);
 
         SeasonalAnime seasonalAnime = objectMapper.readValue(body, SeasonalAnime.class);
-        log.info("Seasonal anime fetched: {}", seasonalAnime);
+        log.debug("Seasonal anime fetched: {}", seasonalAnime);
         return seasonalAnime;
     }
 }

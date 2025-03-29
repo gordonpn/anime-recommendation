@@ -22,12 +22,14 @@ public class UserListService {
 
     public AnimeList getListByUserName(String userName, Status status) throws JsonProcessingException {
         String body = apiKeyClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/users/{userName}/animelist")
-                        .queryParam("status", status.getType())
-                        .queryParam("sort", "list_score")
-                        .queryParam("limit", MAX)
-                        .build(userName))
+                .uri(uriBuilder -> {
+                    uriBuilder.path("/users/{userName}/animelist")
+                            .queryParam("sort", "list_score")
+                            .queryParam("limit", MAX)
+                            .queryParam("status", status.getType());
+
+                    return uriBuilder.build(userName);
+                })
                 .retrieve()
                 .toEntity(String.class)
                 .getBody();

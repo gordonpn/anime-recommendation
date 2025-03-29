@@ -13,6 +13,8 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 
+import java.time.LocalDateTime;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -47,12 +49,30 @@ public class TokenExchangeService {
         return objectMapper.readValue(body, TokenResponse.class);
     }
 
-    public TokenResponse refreshToken(String refreshToken) throws JsonProcessingException {
+    public TokenResponse refreshToken(TokenResponse tokenResponse) throws JsonProcessingException {
+        if (tokenResponse == null) {
+            log.info("No token to refresh");
+            return null;
+        }
+
+        if (tokenResponse.getExpiresAt() == null) {
+            log.info("Token missing expiry date, cannot refresh");
+            return tokenResponse;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime bufferTime = now.plusMinutes(5);
+
+        if (tokenResponse.getExpiresAt().isAfter(bufferTime)) {
+            log.info("Token still valid until {}, no refresh needed", tokenResponse.getExpiresAt());
+            return tokenResponse;
+        }
+
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
         formData.add("client_id", clientId);
         formData.add("client_secret", clientSecret);
         formData.add("grant_type", "refresh_token");
-        formData.add("refresh_token", refreshToken);
+        formData.add("refresh_token", tokenResponse.getRefreshToken());
 
         String body = oauthClient.post()
                 .uri("/v1/oauth2/token")

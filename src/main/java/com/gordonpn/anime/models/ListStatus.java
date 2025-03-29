@@ -21,7 +21,7 @@ import java.util.Map;
 @Data
 public class ListStatus {
     @JsonProperty("status")
-    private String status;
+    private ListStatusType status;
     @JsonProperty("score")
     private Integer score;
     @JsonProperty("num_watched_episodes")
