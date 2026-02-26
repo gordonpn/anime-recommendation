@@ -2,54 +2,59 @@
 
 A rough task list for the project, suitable for human or agent-driven implementation.
 
-## Phase 1: Skeleton
+Scope: Java Spring hybrid CLI + API migration.
 
-- [ ] Initialize Python project structure (`app/`, `scripts/`, `data/`).
-- [ ] Add `pyproject.toml` or `requirements.txt` for:
-  - fastapi
-  - uvicorn[standard]
-  - httpx
-  - sentence-transformers
-  - faiss-cpu
-  - redis
-  - pydantic
-  - (optional) polars or pandas
-- [ ] Implement `app/main.py` with:
-  - FastAPI app instance.
-  - `/health` route.
+## Phase 0: Baseline cleanup
 
-## Phase 2: Metadata & Search
+- [ ] Move MAL credentials to environment-based config.
+- [ ] Rotate any previously committed MAL credentials.
+- [ ] Verify app starts cleanly with local profile and SQLite.
 
-- [ ] Define domain models in `app/models/domain.py`.
-- [ ] Create loader for local metadata file in `data/processed/`.
-- [ ] Implement `GET /search` endpoint.
+## Phase 1: Hybrid runtime foundation
 
-## Phase 3: Embeddings & FAISS
+- [ ] Add runtime mode switch: `app.mode=cli|api|both`.
+- [ ] Gate shell and/or web exposure based on mode.
+- [ ] Add `GET /api/v1/health` endpoint.
+- [ ] Add API exception handling via `@ControllerAdvice`.
 
-- [ ] Implement `scripts/build_index.py` to:
-  - Load metadata.
-  - Build text fields.
-  - Compute embeddings using sentence-transformers.
-  - Build and persist FAISS index and mapping.
-- [ ] Implement FAISS index load/query helper in `app/infra/faiss_index.py`.
+## Phase 2: Expose existing features via API
 
-## Phase 4: Recommender
+- [ ] Add `AuthController`:
+  - `GET /api/v1/auth/status`
+  - `POST /api/v1/auth/refresh`
+- [ ] Add `UserListController`:
+  - `GET /api/v1/users/{userName}/list`
+- [ ] Add `RecommendationController`:
+  - `GET /api/v1/recommendations/{userName}`
+  - `GET /api/v1/recommendations/seasonal`
+- [ ] Ensure controllers delegate to existing services; no duplicated logic.
 
-- [ ] Implement vector aggregation for liked/disliked anime.
-- [ ] Implement initial scoring function (similarity + popularity + rating).
-- [ ] Implement `POST /recommend` route.
+## Phase 3: Recommendation service refactor
 
-## Phase 5: Filters & Hybrid Mode
+- [ ] Introduce `RecommendationFacade` for orchestration.
+- [ ] Extract ranking policy into `RankingService`.
+- [ ] Extract inclusion/exclusion rules into `FilteringService`.
+- [ ] Add `ExplanationService` for recommendation reason text.
+- [ ] Externalize score weights into application properties.
 
-- [ ] Implement filters for:
-  - Year range.
-  - Genre/tag inclusion/exclusion.
-  - Sequels/prequels (stub).
-- [ ] Implement AniList and MAL client stubs.
-- [ ] Wire hybrid recommendations (vector + API-based).
+## Phase 4: Data quality and sync improvements
 
-## Phase 6: Infra
+- [ ] Check sync status at startup and skip unnecessary fetches.
+- [ ] Upsert strategy for `user_anime_list` to avoid duplicates.
+- [ ] Fetch and persist richer anime metadata cache.
+- [ ] Add cache invalidation/TTL policy for external API responses.
 
-- [ ] Add Redis integration for caching.
-- [ ] Add Dockerfile and docker-compose.yml.
-- [ ] Add logging for requests and recommendation calls.
+## Phase 5: Reliability, testing, and delivery
+
+- [ ] Add service-level tests for recommendation and filtering logic.
+- [ ] Add integration tests for key API endpoints.
+- [ ] Add command-level smoke tests for critical CLI paths.
+- [ ] Add request/command structured logging and correlation IDs.
+- [ ] Add containerization assets (`Dockerfile`, optional compose).
+
+## Phase 6: Optional advanced relevance
+
+- [ ] Add popularity/rating signal blending in final score.
+- [ ] Add optional metadata-driven filters (year, genre, sequel handling).
+- [ ] Evaluate Java-native vector search path (Lucene/OpenSearch/pgvector).
+- [ ] Keep API contracts stable while improving ranking internals.

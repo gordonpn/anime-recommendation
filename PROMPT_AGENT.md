@@ -5,63 +5,66 @@ This file is addressed to AI coding agents (Copilot, Cursor, Codeium, etc.).
 ## Goals
 
 - Implement an anime recommendation backend that:
-  - Uses FastAPI for HTTP APIs.
-  - Uses sentence-transformers + FAISS for vector search.
-  - Integrates with AniList and MyAnimeList for metadata and recommendations.
+  - Uses Spring Boot for runtime.
+  - Supports both Spring Shell CLI and Spring Web HTTP APIs.
+  - Integrates with MyAnimeList for authentication, metadata, and recommendations.
 - Keep the design modular and explicit, with clear separation between:
-  - API layer.
+  - Interface layer (CLI + API).
   - Service/business logic.
-  - Infrastructure (FAISS, Redis, HTTP clients).
+  - Infrastructure (HTTP clients, persistence, scheduling).
 
 ## Constraints
 
-- Use **Python 3.11+**.
-- Avoid heavy, monolithic ORMs and frameworks.
+- Use **Java 25** and **Spring Boot 3.x**.
+- Keep existing JPA/Flyway/SQLite setup unless explicitly asked to change it.
 - Do **not** generate a frontend in this repository for now.
-- Keep all external calls behind small, focused client modules.
-- Prefer pure functions for data transformations and ranking logic.
+- Keep external calls behind small, focused services/clients.
+- Avoid duplicating business logic across command and controller classes.
 
 ## Implementation Priorities (Order)
 
 1. **Bootstrap**
-   - Create a FastAPI app (`app/main.py`) with `/health` endpoint.
-   - Add configuration handling (`app/config.py`) using environment variables.
+  - Keep Spring Boot app as the single runtime.
+  - Add runtime mode support: `app.mode=cli|api|both`.
+  - Implement `GET /api/v1/health`.
 
-2. **Data Layer (local only)**
-   - Define a `AnimeMetadata` model in `app/models/domain.py`.
-   - Create a simple loader that reads a placeholder `data/processed/anime_metadata.json` or `.parquet`.
-   - Implement `GET /search` against in-memory metadata.
+2. **API Parity over Existing Services**
+  - Add controllers for auth status/refresh, user list retrieval, and recommendations.
+  - Reuse existing services (`RecommendationService`, `UserListService`, `AnimeService`) instead of rewriting.
+  - Keep CLI commands functional.
 
-3. **FAISS Integration**
-   - Implement a FAISS wrapper in `app/infra/faiss_index.py`:
-     - Loading an index from `data/indexes/index.faiss`.
-     - Querying for nearest neighbors.
-   - Provide a simple in-memory mapping from index position → `AnimeMetadata`.
+3. **Recommendation Refactor**
+  - Introduce orchestration facade (`RecommendationFacade`).
+  - Extract ranking logic into `RankingService`.
+  - Extract filters into `FilteringService`.
+  - Add explanation generation service.
 
-4. **Recommendation Service**
-   - Implement `services/recommender.py`:
-     - Function to compute a user vector from liked/disliked anime.
-     - Function to retrieve candidate neighbors from FAISS.
-     - Function to compute final scores using a weighted formula.
+4. **Reliability and Security**
+  - Move credentials to environment variables/external config.
+  - Add API exception handling (`@ControllerAdvice`).
+  - Add tests for service logic + key API routes.
 
-5. **Filters & Explanations**
-   - Implement `services/filters.py`:
-     - Sequels/prequels filtering (interface only at first; can stub AniList).
-     - Tag-based inclusion/exclusion filters.
-   - Implement `services/explanations.py`:
-     - Combine metadata + scores into short textual explanations.
+5. **Optional Advanced Relevance**
+  - Add weighted blending with additional signals (rating/popularity).
+  - Optionally evaluate Java-native vector search (Lucene/OpenSearch/pgvector).
 
-6. **External API Stubs**
-   - Create `clients/anilist_client.py` and `clients/mal_client.py` with stubbed async methods.
-   - Implement minimal real calls later, using `httpx`.
+## Coding Expectations
 
-7. **Dockerization**
-   - Add a `Dockerfile` and `docker-compose.yml`:
-     - API service.
-     - Redis service.
+- Keep changes incremental and backward-compatible.
+- Prefer introducing new classes over large rewrites in-place.
+- Keep methods small and composable.
+- Add/adjust tests when introducing significant behavior changes.
+- Preserve existing command names unless migration explicitly requires changes.
 
 ## Style Preferences
 
-- Use type hints and Pydantic models for request/response schemas.
-- Handle errors explicitly; return meaningful HTTP status codes.
-- Keep functions small and composable.
+- Use explicit DTOs for API request/response payloads.
+- Handle errors explicitly with meaningful HTTP status codes and messages.
+- Keep class responsibilities focused (controller/service/repository separation).
+- Prefer constructor injection and immutable dependencies.
+
+## Out of Scope (unless asked)
+
+- Python/FastAPI services.
+- Frontend/UI generation.
+- Microservice decomposition.

@@ -1,83 +1,92 @@
 # Anime Recommendation
 
-## Development
+Anime recommendation backend built with **Java + Spring Boot**, currently centered on a **CLI workflow** and evolving into a **hybrid CLI + HTTP API** service.
 
-### Prerequisites
+The project integrates with **MyAnimeList (MAL)** for authentication and data retrieval, persists local state in **SQLite**, and uses **Flyway** for schema migrations.
 
-- JDK23
+## Tech Stack
 
-### Run
+- Java 25 (toolchain)
+- Spring Boot 3.x
+- Spring Shell (CLI)
+- Spring Web (HTTP API support)
+- Spring Data JPA + SQLite
+- Flyway migrations
+- Lombok
 
-To run the app
+## Current Capabilities
+
+- Interactive MAL OAuth login from CLI.
+- Access token refresh and token persistence.
+- Fetch user anime list by status.
+- Aggregate MAL recommendations based on completed titles.
+- Seasonal recommendation helper command.
+- Scheduled background sync of user list statuses.
+
+## Target Direction
+
+- Keep CLI commands working.
+- Add REST endpoints over the same service layer (no duplicated business logic).
+- Support runtime modes: `cli`, `api`, `both`.
+- Incrementally refactor recommendation logic into focused services (ranking/filtering/explanations).
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the detailed target architecture and migration phases.
+
+## Prerequisites
+
+- JDK 25
+
+## Configuration
+
+Set MAL credentials via environment variables or externalized Spring config:
+
+- `MAL_CLIENT_ID`
+- `MAL_CLIENT_SECRET`
+- `MAL_REDIRECT_URI`
+- `MAL_CALLBACK_PORT`
+
+Recommended: do not store real credentials in tracked files.
+
+## Run
+
+Build and run:
 
 ```sh
 ./gradlew clean bootJar && java -jar build/libs/anime-0.0.1-SNAPSHOT.jar
 ```
 
-## To-do
+Dev run:
 
-- [x] Persist the token, to reuse on next run
-- [x] Persist fetched anime details for certain time, to avoid unnecessary refetches
-- [ ] Check the sync status table on start and skip is unnecessary
-- [ ] Fetch anime details for each anime in the user list and persist
+```sh
+./gradlew bootRun
+```
 
-An anime recommendation service that combines **content-based similarity** (text embeddings + vector search) with **graph data** from [AniList](navigational_search:AniList API) and [MyAnimeList](navigational_search:MyAnimeList API) to produce ranked anime recommendations.
+## CLI Commands (current)
 
-The focus is on:
-- Learning **fundamental recommender system concepts** (similarity, ranking, filtering).
-- Using **adopted, industry-relevant tools** (FastAPI, sentence-transformers, FAISS, Redis).
-- Keeping the codebase **agent-friendly** and easy to extend.
+- `login` - Authenticate with MAL via browser callback.
+- `refresh` - Refresh access token.
+- `list --userName @me` - Fetch completed anime list.
+- `recommendation --userName @me` - Show aggregated recommendations.
+- `seasonal --numYears 5` - Seasonal ranking utility.
+- `suggestions` - MAL suggestions call.
+- `flyway-info` / `flyway-repair` - migration maintenance commands.
 
-## High-Level Features
+## Planned API Endpoints (hybrid mode)
 
-- Search for one or more anime and get a ranked recommendation list.
-- Combine **vector similarity** (synopsis + tags) with **API recommendations** from AniList/MAL.
-- Exclude or de-prioritize sequels/prequels when desired.
-- Allow users to mark anime they **liked** and **did not like**.
-- Filter suggestions by season/year and genres.
+- `GET /api/v1/health`
+- `GET /api/v1/auth/status`
+- `POST /api/v1/auth/refresh`
+- `GET /api/v1/users/{userName}/list?status=completed`
+- `GET /api/v1/recommendations/{userName}`
+- `GET /api/v1/recommendations/seasonal?years=5`
 
-## Tech Stack
+## Testing
 
-**Backend**
+```sh
+./gradlew test
+```
 
-- Language: JDK23+
-- Web framework:
-- HTTP client:
-- GraphQL client: minimal wrapper around AniList GraphQL using `httpx` or `gql`.
-- Recommender:
-  - `sentence-transformers` for text embeddings.
-  - `faiss-cpu` for approximate nearest-neighbor search.
-- DataFrame / ETL: `polars` or `pandas` (for offline preprocessing).
-- Cache: Redis (for API responses and ID mappings).
+## Project Status
 
-**Data Sources**
-
-- AniList API (GraphQL) for anime metadata, relations, and recommendations.
-- MyAnimeList API v2 for recommendations and additional metadata.
-- Community ID mapping dataset for MAL ↔ AniList ID conversion.
-- Optional: public anime datasets (e.g., Kaggle) for bulk preprocessing (synopsis, tags, genres).
-
-**Deployment**
-
-- Containerized with Docker.
-- Optional: Docker Compose setup for `api`, `redis`, and a `worker` or `preprocessor`.
-- Future: Deployment to k3s.
-
-## Core Design Goals
-
-- **Explainable recommendations** (e.g., “Recommended because it is similar to X and shares tags Y/Z”).
-- Clear separation between:
-  - Data ingestion & preprocessing.
-  - Online serving (API).
-  - External integrations (AniList/MAL clients).
-- Avoid over-abstracted magic; keep core ranking/filtering logic explicit.
-
-## Getting Started (for an agent)
-
-1. Set up a basic FastAPI app with a health check route.
-2. Add configuration loading (env vars) for API keys and data paths.
-3. Implement a simple `/search` endpoint that searches local anime metadata by title.
-4. Add offline embedding + FAISS index builder.
-5. Implement `/recommend`:
-   - Input: list of liked anime IDs, optional disliked IDs, optional filters.
-   - Output: ranked list of anime with reasons and metadata.
+This is an active refactor/migration toward a hybrid interface model.
+Contributions should follow the Java-first architecture in [ARCHITECTURE.md](ARCHITECTURE.md).
