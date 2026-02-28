@@ -62,7 +62,7 @@ Suggested config flag:
 
 ## 4.2 Design rule
 
-Both CLI and API call the same service methods.  
+Both CLI and API call the same service methods.
 No business logic lives directly in command/controller classes.
 
 ## 5) Package Direction (target)

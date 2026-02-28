@@ -2,6 +2,12 @@
 
 This file is addressed to AI coding agents (Copilot, Cursor, Codeium, etc.).
 
+## Mandatory Project Context Reads
+
+- Before planning or implementing any code change, read all other project-level Markdown files in this repository to gather context.
+- At minimum, read `README.md`, `ARCHITECTURE.md`, and `TODO.md` (in addition to this `AGENTS.md`) at the start of a task.
+- If additional `.md` files are added later, read those too before making changes.
+
 ## Goals
 
 - Implement an anime recommendation backend that:
