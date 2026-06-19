@@ -189,10 +189,19 @@ public class RecommendationCommands {
             }
             double combinedMean = count > 0 ? (sum / count) : 0.0;
 
-            // Pick the title of the entry with the highest popularity (lowest popularity rank)
+            // Pick the title of the entry with the highest popularity (lowest popularity rank) in the ENTIRE component
             AnimeDetails representative = null;
-            for (Integer id : componentSeasonalIds) {
-                AnimeDetails d = detailsMap.get(id);
+            for (Integer id : component) {
+                AnimeDetails d = null;
+                if (detailsMap.containsKey(id)) {
+                    d = detailsMap.get(id);
+                } else {
+                    try {
+                        d = animeService.getAnimeById(id);
+                    } catch (Exception e) {
+                        log.debug("Skipping relation graph bridge detail fetch failure for ID: {}", id);
+                    }
+                }
                 if (d == null) continue;
                 if (representative == null) {
                     representative = d;
