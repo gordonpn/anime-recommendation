@@ -34,9 +34,19 @@ public class BackgroundFetchService {
     @Scheduled(fixedDelay = ONE_HOUR_IN_MILLIS)
     public void fetchList() throws JsonProcessingException {
         TokenResponse tokenResponse = authorizationState.getTokenResponse();
+        if (tokenResponse == null) {
+            log.warn("No active authorization token found. Skipping synchronization. Please run 'login' to authenticate.");
+            return;
+        }
         TokenResponse tokens = tokenExchangeService.refreshToken(tokenResponse);
+        if (tokens == null) {
+            log.warn("Token refresh failed. Skipping synchronization.");
+            return;
+        }
         authorizationState.setTokenResponse(tokens);
         tokenRepository.save(tokens);
+
+        java.util.Set<Integer> fetchedAnimeIds = new java.util.HashSet<>();
 
         for (Status status : Status.values()) {
             log.info("Fetching anime list for status: {}", status.getType());
@@ -49,14 +59,19 @@ public class BackgroundFetchService {
             log.info("Converting status from {} to ListStatusType {}", status.getType(), listStatusType);
             for (Datum datum : listByUserName.getData()) {
                 log.info("Processing anime: {}. Status: {}", datum.toString(), listStatusType);
-                UserAnimeListEntity entity = new UserAnimeListEntity();
-                entity.setAnimeId(datum.getNode().getId());
+                Integer animeId = datum.getNode().getId();
+                fetchedAnimeIds.add(animeId);
+
+                UserAnimeListEntity entity = userAnimeListRepository.findByAnimeId(animeId)
+                        .orElse(new UserAnimeListEntity());
+                entity.setAnimeId(animeId);
                 entity.setStatus(listStatusType);
-//                entity.setUserScore(datum.getListStatus().getScore());
+                if (datum.getListStatus() != null) {
+                    entity.setUserScore(datum.getListStatus().getScore());
+                }
 
                 userAnimeListRepository.save(entity);
-                log.info("Saved anime into user list table: {}", datum.getNode().getTitle());
-
+                log.info("Saved/updated anime in user list table: {} (ID: {})", datum.getNode().getTitle(), animeId);
             }
             LocalDateTime now = LocalDateTime.now();
             SyncStatusEntity syncStatus = syncStatusRepository.findById(listStatusType.getValue())
@@ -68,6 +83,14 @@ public class BackgroundFetchService {
             log.info("Saved {} anime entries", listByUserName.getData().size());
         }
 
+        // Delete any local user list items that are no longer in the user's MAL lists
+        java.util.List<UserAnimeListEntity> allLocal = userAnimeListRepository.findAll();
+        for (UserAnimeListEntity local : allLocal) {
+            if (!fetchedAnimeIds.contains(local.getAnimeId())) {
+                log.info("Deleting anime ID {} from local list as it is no longer on MAL", local.getAnimeId());
+                userAnimeListRepository.delete(local);
+            }
+        }
     }
 
     public void fetchAnimeAnAnime() {
