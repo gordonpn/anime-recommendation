@@ -32,4 +32,13 @@
 
 ### Multi-Signal Recommendation Ranking
 - **User Score Weighted Scaling:** To allow the user's taste to guide the ranking, the recommendation occurrence count is scaled by `avgCompletedGroupRating / 7.0` (using `1.0` if the completed show was unrated).
-- **Candidate Franchise-Wide Average Rating:** Instead of using just the recommended candidate's single database mean score, we retrieve first-degree related shows (prequels, sequels, parent/full stories) and average their `mean` scores to obtain a franchise-wide rating. To ensure execution speed and avoid infinite API requests, lookups are capped at a maximum of 10 related entries.
+
+### API Request Retry Interceptor with Exponential Backoff
+- **Transient vs. Permanent Errors:**
+  - **Fail-Fast (No Retry):** `404 Not Found`, `401 Unauthorized`, `403 Forbidden`. These represent permanent access or resource states. Skipping retries saves request rate limits and prevents long execution delays.
+  - **Retryable Errors:** `429 Too Many Requests` (rate limits), `5xx` Server Errors, and network dropouts (`IOException`).
+- **Mechanism:** Implemented as a Spring `ClientHttpRequestInterceptor` (`MalRetryInterceptor`) on the `apiKeyClient` bean.
+- **Configurability:** Standard parameters are configured via `application.properties`:
+  - `mal.retry.max-attempts` (default: 3)
+  - `mal.retry.initial-backoff-ms` (default: 500ms)
+  - `mal.retry.backoff-multiplier` (default: 2.0)
