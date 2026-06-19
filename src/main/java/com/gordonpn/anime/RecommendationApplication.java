@@ -35,10 +35,21 @@ public class RecommendationApplication {
             System.setProperty("spring.autoconfigure.exclude",
                     "org.springframework.shell.boot.SpringShellAutoConfiguration," +
                     "org.springframework.shell.boot.JLineShellAutoConfiguration," +
+                    "org.springframework.shell.boot.JLineAutoConfiguration," +
+                    "org.springframework.shell.boot.CommandCatalogAutoConfiguration," +
+                    "org.springframework.shell.boot.ShellContextAutoConfiguration," +
+                    "org.springframework.shell.boot.ShellRunnerAutoConfiguration," +
+                    "org.springframework.shell.boot.LineReaderAutoConfiguration," +
                     "org.springframework.shell.boot.StandardAPIAutoConfiguration," +
                     "org.springframework.shell.boot.StandardCommandsAutoConfiguration," +
-                    "org.springframework.shell.boot.LineReaderAutoConfiguration," +
-                    "org.springframework.shell.boot.ShellRunnerAutoConfiguration");
+                    "org.springframework.shell.boot.ParameterResolverAutoConfiguration," +
+                    "org.springframework.shell.boot.ComponentFlowAutoConfiguration," +
+                    "org.springframework.shell.boot.ApplicationRunnerAutoConfiguration," +
+                    "org.springframework.shell.boot.ThemingAutoConfiguration," +
+                    "org.springframework.shell.boot.TerminalUIAutoConfiguration," +
+                    "org.springframework.shell.boot.ExitCodeAutoConfiguration," +
+                    "org.springframework.shell.boot.CompleterAutoConfiguration," +
+                    "org.springframework.shell.boot.UserConfigAutoConfiguration");
         } else if ("both".equalsIgnoreCase(mode)) {
             app.setWebApplicationType(WebApplicationType.SERVLET);
             System.setProperty("spring.shell.interactive.enabled", "true");
