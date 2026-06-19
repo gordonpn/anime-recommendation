@@ -23,6 +23,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.gordonpn.anime.models.RecommendationDetailedResult;
+import com.gordonpn.anime.service.recommendation.RecommendationFacade;
+
 @ShellComponent
 @RequiredArgsConstructor
 @Slf4j
@@ -32,11 +35,42 @@ public class RecommendationCommands {
 
     private final RecommendationService recommendationService;
     private final AnimeService animeService;
+    private final RecommendationFacade recommendationFacade;
 
     @ShellMethod(key = "recommendation", value = "Recommendation command")
-    public String recommendation(@ShellOption(defaultValue = "@me") String userName) throws JsonProcessingException {
-        Map<String, Integer> recommendationOccurrence = recommendationService.recommendationOccurrence(userName);
-        return objectMapper.writeValueAsString(recommendationOccurrence);
+    public String recommendation(
+            @ShellOption(defaultValue = "@me") String userName,
+            @ShellOption(defaultValue = "false") boolean json,
+            @ShellOption(defaultValue = "10") int limit) throws JsonProcessingException {
+        
+        List<RecommendationDetailedResult> recommendations = recommendationFacade.getRecommendations(userName, limit);
+        
+        if (json) {
+            return objectMapper.writeValueAsString(recommendations);
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("\n=== Recommendations for %s ===\n", userName));
+        sb.append(String.format("%-4s | %-40s | %-6s | %-6s | %-6s | %-6s | %s\n", 
+                "Rank", "Title", "Score", "Occur", "Rating", "Pop", "Explanation"));
+        sb.append("-".repeat(110)).append("\n");
+        for (int i = 0; i < recommendations.size(); i++) {
+            RecommendationDetailedResult res = recommendations.get(i);
+            String title = res.getTitle() != null ? res.getTitle() : "Unknown";
+            if (title.length() > 40) {
+                title = title.substring(0, 37) + "...";
+            }
+            sb.append(String.format("%-4d | %-40s | %-6.2f | %-6d | %-6.1f | %-6s | %s\n",
+                    i + 1,
+                    title,
+                    res.getScore(),
+                    res.getOccurrence(),
+                    res.getMeanRating() != null ? res.getMeanRating() : 0.0,
+                    res.getPopularity() != null ? String.valueOf(res.getPopularity()) : "N/A",
+                    res.getExplanation()));
+        }
+        sb.append("=============================================\n");
+        return sb.toString();
     }
 
     @ShellMethod(key = "seasonal", value = "Seasonal recommendation command")

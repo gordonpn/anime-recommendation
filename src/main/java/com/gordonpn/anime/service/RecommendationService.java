@@ -7,8 +7,10 @@ import com.gordonpn.anime.models.AnimeList;
 import com.gordonpn.anime.models.Datum;
 import com.gordonpn.anime.models.Node;
 import com.gordonpn.anime.models.Recommendation;
+import com.gordonpn.anime.models.RecommendationDetailedResult;
 import com.gordonpn.anime.models.RecommendationResult;
 import com.gordonpn.anime.models.userlist.Status;
+import com.gordonpn.anime.service.recommendation.RecommendationFacade;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -33,63 +35,15 @@ public class RecommendationService {
     private final UserListService userListService;
     private final AnimeService animeService;
     private final RestClient apiKeyClient;
+    private final RecommendationFacade recommendationFacade;
 
     public Map<String, Integer> recommendationOccurrence(String userName) throws JsonProcessingException {
-        HashMap<RecommendationResult, Integer> compiledRecommendations = new HashMap<>();
-
-        AnimeList completedList = userListService.getListByUserName(userName, Status.COMPLETED);
-        AnimeList droppedList = userListService.getListByUserName(userName, Status.DROPPED);
-
-        List<Datum> completedListData = completedList.getData();
-        List<Datum> droppedListData = droppedList.getData();
-        HashSet<Integer> existingIds = new HashSet<>();
-
-        for (Datum anime : completedListData) {
-            Node node = anime.getNode();
-            Integer id = node.getId();
-            existingIds.add(id);
+        List<RecommendationDetailedResult> results = recommendationFacade.getRecommendations(userName, 50);
+        Map<String, Integer> legacyMap = new LinkedHashMap<>();
+        for (RecommendationDetailedResult res : results) {
+            legacyMap.put(res.getTitle(), res.getOccurrence());
         }
-
-        for (Datum anime : droppedListData) {
-            Node node = anime.getNode();
-            Integer id = node.getId();
-            existingIds.add(id);
-        }
-
-        for (Datum anime : completedListData) {
-            try {
-                Node animeNode = anime.getNode();
-                Integer animeNodeId = animeNode.getId();
-                AnimeDetails details = animeService.getAnimeById(animeNodeId);
-
-                List<Recommendation> recommendations = details.getRecommendations();
-                for (Recommendation recommendation : recommendations) {
-                    Integer numRecommendations = recommendation.getNumRecommendations();
-                    Node recommendationNode = recommendation.getNode();
-                    Integer recommendationNodeId = recommendationNode.getId();
-
-                    if (!existingIds.contains(recommendationNodeId)) {
-                        RecommendationResult recommendationResult = RecommendationResult.builder()
-                                .id(recommendationNodeId)
-                                .title(recommendationNode.getTitle())
-                                .build();
-                        compiledRecommendations.merge(recommendationResult, numRecommendations, Integer::sum);
-                    }
-                }
-            } catch (Exception e) {
-                log.error("Error fetching anime by ID", e);
-            }
-        }
-
-        return compiledRecommendations.entrySet()
-                .stream()
-                .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
-                .collect(Collectors.toMap(
-                        recommendationResultIntegerEntry -> recommendationResultIntegerEntry.getKey().getTitle(),
-                        Map.Entry::getValue,
-                        (e1, _) -> e1,
-                        LinkedHashMap::new
-                ));
+        return legacyMap;
     }
 
     public void getSuggestions() throws JsonProcessingException {
