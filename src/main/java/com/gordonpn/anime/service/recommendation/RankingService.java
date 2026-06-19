@@ -15,7 +15,7 @@ public class RankingService {
     @Value("${recommendation.weights.popularity:0.0001}")
     private double weightPopularity;
 
-    public double calculateScore(int occurrence, Double meanRating, Integer popularity) {
+    public double calculateScore(double occurrence, Double meanRating, Integer popularity) {
         double occScore = occurrence;
         double ratingScore = (meanRating != null) ? meanRating : 0.0;
         

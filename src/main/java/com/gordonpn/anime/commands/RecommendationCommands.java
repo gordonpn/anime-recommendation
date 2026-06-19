@@ -66,7 +66,7 @@ public class RecommendationCommands {
             if (title.length() > 40) {
                 title = title.substring(0, 37) + "...";
             }
-            sb.append(String.format("%-4d | %-40s | %-6.2f | %-6d | %-6.1f | %-6s | %s\n",
+            sb.append(String.format("%-4d | %-40s | %-6.2f | %-6.1f | %-6.1f | %-6s | %s\n",
                     i + 1,
                     title,
                     res.getScore(),

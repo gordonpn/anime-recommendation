@@ -24,4 +24,12 @@
   - User lists: **1 day** TTL.
 - **Fail-Safe Fallback:** If the external API is down or rate-limited, the system falls back to returning the expired cache contents rather than throwing an exception.
 
+### Completed Series Grouping & Recommendation Pooling
+- **Grouping Strategy:** Watched seasons/parts of the same series are grouped into connected components using MAL's `related_anime` relations. The components partition distinct franchises.
+- **Group Representative Title:** Consolidates all matching completed entries under the title of the entry with the *highest popularity* (minimum popularity rank number) in the entire connected component.
+- **Group User Rating Calculation (Straight Average):** We compute the average of user-submitted scores for the completed shows in that group.
+- **Recommendation Pooling:** All user-recommended similar titles from all shows in a grouped completed series are pooled together, so recommending signals from sequels/prequels of a franchise are consolidated.
 
+### Multi-Signal Recommendation Ranking
+- **User Score Weighted Scaling:** To allow the user's taste to guide the ranking, the recommendation occurrence count is scaled by `avgCompletedGroupRating / 7.0` (using `1.0` if the completed show was unrated).
+- **Candidate Franchise-Wide Average Rating:** Instead of using just the recommended candidate's single database mean score, we retrieve first-degree related shows (prequels, sequels, parent/full stories) and average their `mean` scores to obtain a franchise-wide rating. To ensure execution speed and avoid infinite API requests, lookups are capped at a maximum of 10 related entries.

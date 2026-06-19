@@ -32,6 +32,7 @@ public class RecommendationFacade {
     public List<RecommendationDetailedResult> getRecommendations(String userName, int limit) throws JsonProcessingException {
         List<Integer> completedIds = new ArrayList<>();
         Map<Integer, String> completedIdToTitleMap = new HashMap<>();
+        Map<Integer, Integer> completedIdToUserScoreMap = new HashMap<>();
         Set<Integer> droppedIds = new HashSet<>();
 
         // 1. Gather completed & dropped lists
@@ -46,6 +47,7 @@ public class RecommendationFacade {
                         .map(AnimeCacheEntity::getTitle)
                         .orElse("Unknown Anime (ID: " + entity.getAnimeId() + ")");
                 completedIdToTitleMap.put(entity.getAnimeId(), title);
+                completedIdToUserScoreMap.put(entity.getAnimeId(), entity.getUserScore());
             }
             for (UserAnimeListEntity entity : droppedLocal) {
                 droppedIds.add(entity.getAnimeId());
@@ -60,6 +62,9 @@ public class RecommendationFacade {
                     Integer id = datum.getNode().getId();
                     completedIds.add(id);
                     completedIdToTitleMap.put(id, datum.getNode().getTitle());
+                    if (datum.getListStatus() != null) {
+                        completedIdToUserScoreMap.put(id, datum.getListStatus().getScore());
+                    }
                 }
             }
             if (droppedList != null && droppedList.getData() != null) {
@@ -69,44 +74,158 @@ public class RecommendationFacade {
             }
         }
 
-        // 2. Fetch completed anime details & extract candidate recommendations
-        Map<Integer, Integer> recOccurrenceMap = new HashMap<>();
-        Map<Integer, List<String>> recommendationSourcesMap = new HashMap<>();
+        // Build graph of relations among completed shows to group different seasons/OVAs
+        Map<Integer, Set<Integer>> graph = new HashMap<>();
+        Map<Integer, AnimeDetails> detailsMap = new HashMap<>();
         Set<Integer> completedIdsSet = new HashSet<>(completedIds);
 
         for (Integer completedId : completedIds) {
             try {
                 AnimeDetails details = animeService.getAnimeById(completedId);
-                String completedTitle = details.getTitle() != null ? details.getTitle() : completedIdToTitleMap.getOrDefault(completedId, "Unknown");
-                
-                // Update map to have the actual fetched title in case it was unknown
-                completedIdToTitleMap.put(completedId, completedTitle);
+                detailsMap.put(completedId, details);
+                graph.putIfAbsent(completedId, new HashSet<>());
 
-                List<Recommendation> recommendations = details.getRecommendations();
-                if (recommendations == null) {
-                    continue;
-                }
-
-                for (Recommendation recommendation : recommendations) {
-                    Node recNode = recommendation.getNode();
-                    if (recNode == null || recNode.getId() == null) {
-                        continue;
-                    }
-                    Integer recNodeId = recNode.getId();
-
-                    if (filteringService.shouldInclude(recNodeId, completedIdsSet, droppedIds)) {
-                        int numRecs = recommendation.getNumRecommendations() != null ? recommendation.getNumRecommendations() : 1;
-                        recOccurrenceMap.merge(recNodeId, numRecs, Integer::sum);
-                        recommendationSourcesMap.computeIfAbsent(recNodeId, _ -> new ArrayList<>())
-                                .add(completedTitle);
+                List<RelatedAnime> related = details.getRelatedAnime();
+                if (related != null) {
+                    for (RelatedAnime rel : related) {
+                        if (rel.getNode() != null && rel.getNode().getId() != null) {
+                            Integer relId = rel.getNode().getId();
+                            graph.putIfAbsent(relId, new HashSet<>());
+                            graph.get(completedId).add(relId);
+                            graph.get(relId).add(completedId);
+                        }
                     }
                 }
             } catch (Exception e) {
-                log.error("Failed to process recommendations for completed anime ID: {}", completedId, e);
+                log.error("Failed to fetch details/relations for completed anime ID: {}", completedId, e);
             }
         }
 
-        // 3. Sort candidates by recommendation count and take top ones for details query
+        // Run connected components BFS to partition distinct franchises
+        Set<Integer> visited = new HashSet<>();
+        List<Set<Integer>> components = new ArrayList<>();
+
+        for (Integer node : graph.keySet()) {
+            if (!visited.contains(node)) {
+                Set<Integer> component = new HashSet<>();
+                Queue<Integer> queue = new LinkedList<>();
+                queue.add(node);
+                visited.add(node);
+
+                while (!queue.isEmpty()) {
+                    Integer curr = queue.poll();
+                    component.add(curr);
+                    for (Integer neighbor : graph.getOrDefault(curr, Collections.emptySet())) {
+                        if (!visited.contains(neighbor)) {
+                            visited.add(neighbor);
+                            queue.add(neighbor);
+                        }
+                    }
+                }
+                components.add(component);
+            }
+        }
+
+        // Map completedId to component representative title and average user score
+        Map<Integer, String> completedIdToGroupTitleMap = new HashMap<>();
+        Map<Integer, Double> completedIdToGroupUserScoreMap = new HashMap<>();
+
+        for (Set<Integer> component : components) {
+            List<Integer> completedInComponent = new ArrayList<>();
+            for (Integer id : component) {
+                if (completedIdsSet.contains(id)) {
+                    completedInComponent.add(id);
+                }
+            }
+            if (completedInComponent.isEmpty()) {
+                continue;
+            }
+
+            // Calculate average user score for completed shows in this component
+            double sumUserScore = 0.0;
+            int countUserScore = 0;
+            for (Integer id : completedInComponent) {
+                Integer score = completedIdToUserScoreMap.get(id);
+                if (score != null && score > 0) {
+                    sumUserScore += score;
+                    countUserScore++;
+                }
+            }
+            Double avgUserScore = countUserScore > 0 ? (sumUserScore / countUserScore) : null;
+
+            // Find representative title (minimum popularity rank in the component among those with details)
+            String representativeTitle = null;
+            Integer minPopularity = Integer.MAX_VALUE;
+
+            for (Integer id : component) {
+                AnimeDetails det = detailsMap.get(id);
+                if (det != null && det.getPopularity() != null && det.getPopularity() < minPopularity) {
+                    minPopularity = det.getPopularity();
+                    representativeTitle = det.getTitle();
+                }
+            }
+
+            if (representativeTitle == null) {
+                Integer firstId = completedInComponent.get(0);
+                representativeTitle = completedIdToTitleMap.getOrDefault(firstId, "Unknown");
+            }
+
+            for (Integer id : completedInComponent) {
+                completedIdToGroupTitleMap.put(id, representativeTitle);
+                if (avgUserScore != null) {
+                    completedIdToGroupUserScoreMap.put(id, avgUserScore);
+                }
+            }
+        }
+
+        // 2. Fetch completed anime details & extract candidate recommendations
+        Map<Integer, Double> recOccurrenceMap = new HashMap<>();
+        Map<Integer, List<String>> recommendationSourcesMap = new HashMap<>();
+
+        for (Integer completedId : completedIds) {
+            AnimeDetails details = detailsMap.get(completedId);
+            if (details == null) {
+                continue;
+            }
+
+            // User rating multiplier based on the group average score
+            Double groupUserScore = completedIdToGroupUserScoreMap.get(completedId);
+            double userRatingMultiplier = 1.0;
+            if (groupUserScore != null && groupUserScore > 0) {
+                userRatingMultiplier = groupUserScore / 7.0; // 7.0 is default average rating
+            }
+
+            String groupTitle = completedIdToGroupTitleMap.getOrDefault(completedId, completedIdToTitleMap.getOrDefault(completedId, "Unknown"));
+
+            List<Recommendation> recommendations = details.getRecommendations();
+            if (recommendations == null) {
+                continue;
+            }
+
+            for (Recommendation recommendation : recommendations) {
+                Node recNode = recommendation.getNode();
+                if (recNode == null || recNode.getId() == null) {
+                    continue;
+                }
+                Integer recNodeId = recNode.getId();
+
+                if (filteringService.shouldInclude(recNodeId, completedIdsSet, droppedIds)) {
+                    int numRecs = recommendation.getNumRecommendations() != null ? recommendation.getNumRecommendations() : 1;
+                    
+                    // Weighted recommendation count
+                    double weightedRec = numRecs * userRatingMultiplier;
+                    
+                    recOccurrenceMap.merge(recNodeId, weightedRec, Double::sum);
+                    
+                    List<String> sources = recommendationSourcesMap.computeIfAbsent(recNodeId, _ -> new ArrayList<>());
+                    if (!sources.contains(groupTitle)) {
+                        sources.add(groupTitle);
+                    }
+                }
+            }
+        }
+
+        // 3. Sort candidates by weighted recommendation count
         List<Integer> topCandidateIds = recOccurrenceMap.entrySet().stream()
                 .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
                 .map(Map.Entry::getKey)
@@ -119,9 +238,12 @@ public class RecommendationFacade {
         for (Integer candidateId : topCandidateIds) {
             try {
                 AnimeDetails details = animeService.getAnimeById(candidateId);
-                int occurrence = recOccurrenceMap.getOrDefault(candidateId, 0);
+                double occurrence = recOccurrenceMap.getOrDefault(candidateId, 0.0);
                 
-                double score = rankingService.calculateScore(occurrence, details.getMean(), details.getPopularity());
+                // Calculate average candidate rating across its franchise seasons/OVAs/etc.
+                Double overallRating = calculateOverallFranchiseRating(details);
+                
+                double score = rankingService.calculateScore(occurrence, overallRating, details.getPopularity());
                 String explanation = explanationService.generateExplanation(occurrence, recommendationSourcesMap.get(candidateId));
 
                 detailedResults.add(RecommendationDetailedResult.builder()
@@ -129,7 +251,7 @@ public class RecommendationFacade {
                         .title(details.getTitle())
                         .score(score)
                         .occurrence(occurrence)
-                        .meanRating(details.getMean())
+                        .meanRating(overallRating)
                         .popularity(details.getPopularity())
                         .explanation(explanation)
                         .build());
@@ -143,5 +265,65 @@ public class RecommendationFacade {
                 .sorted((r1, r2) -> Double.compare(r2.getScore(), r1.getScore()))
                 .limit(limit)
                 .collect(Collectors.toList());
+    }
+
+    private Double calculateOverallFranchiseRating(AnimeDetails candidateDetails) {
+        if (candidateDetails == null) {
+            return null;
+        }
+
+        List<RelatedAnime> related = candidateDetails.getRelatedAnime();
+        if (related == null || related.isEmpty()) {
+            return candidateDetails.getMean();
+        }
+
+        List<Double> ratings = new ArrayList<>();
+        if (candidateDetails.getMean() != null && candidateDetails.getMean() > 0) {
+            ratings.add(candidateDetails.getMean());
+        }
+
+        int lookupLimit = 10;
+        int lookupCount = 0;
+
+        for (RelatedAnime rel : related) {
+            if (rel.getNode() != null && rel.getNode().getId() != null) {
+                if (lookupCount >= lookupLimit) {
+                    break;
+                }
+
+                String relType = rel.getRelationType();
+                boolean isFranchiseRelation = relType == null ||
+                        relType.equalsIgnoreCase("prequel") ||
+                        relType.equalsIgnoreCase("sequel") ||
+                        relType.equalsIgnoreCase("parent_story") ||
+                        relType.equalsIgnoreCase("full_story") ||
+                        relType.equalsIgnoreCase("alternative_setting") ||
+                        relType.equalsIgnoreCase("alternative_version");
+
+                if (!isFranchiseRelation) {
+                    continue;
+                }
+
+                try {
+                    AnimeDetails relDetails = animeService.getAnimeById(rel.getNode().getId());
+                    if (relDetails != null && relDetails.getMean() != null && relDetails.getMean() > 0) {
+                        ratings.add(relDetails.getMean());
+                    }
+                    lookupCount++;
+                } catch (Exception e) {
+                    log.warn("Failed to fetch related anime ID {} for franchise rating calculation: {}", rel.getNode().getId(), e.getMessage());
+                }
+            }
+        }
+
+        if (ratings.isEmpty()) {
+            return null;
+        }
+
+        double sum = 0.0;
+        for (Double r : ratings) {
+            sum += r;
+        }
+        return sum / ratings.size();
     }
 }

@@ -7,13 +7,13 @@ import java.util.List;
 @Service
 public class ExplanationService {
 
-    public String generateExplanation(int occurrence, List<String> sourceTitles) {
+    public String generateExplanation(double occurrence, List<String> sourceTitles) {
         if (sourceTitles == null || sourceTitles.isEmpty()) {
-            return String.format("Recommended with occurrence frequency: %d.", occurrence);
+            return String.format("Recommended with occurrence frequency: %.1f.", occurrence);
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("Recommended because it is suggested by %d completed title(s) on your list: ", occurrence));
+        sb.append(String.format("Recommended because it is suggested by %.1f completed title(s) on your list: ", occurrence));
         
         int showLimit = 3;
         int count = Math.min(sourceTitles.size(), showLimit);

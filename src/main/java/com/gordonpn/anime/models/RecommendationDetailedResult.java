@@ -13,7 +13,7 @@ public class RecommendationDetailedResult {
     private Integer id;
     private String title;
     private Double score;
-    private Integer occurrence;
+    private Double occurrence;
     private Double meanRating;
     private Integer popularity;
     private String explanation;

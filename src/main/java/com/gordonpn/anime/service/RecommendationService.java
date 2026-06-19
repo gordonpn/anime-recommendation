@@ -41,7 +41,7 @@ public class RecommendationService {
         List<RecommendationDetailedResult> results = recommendationFacade.getRecommendations(userName, 50);
         Map<String, Integer> legacyMap = new LinkedHashMap<>();
         for (RecommendationDetailedResult res : results) {
-            legacyMap.put(res.getTitle(), res.getOccurrence());
+            legacyMap.put(res.getTitle(), res.getOccurrence() != null ? (int) Math.round(res.getOccurrence()) : 0);
         }
         return legacyMap;
     }

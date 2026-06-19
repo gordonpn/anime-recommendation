@@ -47,7 +47,7 @@ public class RecommendationServiceTests {
                 .id(3)
                 .title("Recommended Anime")
                 .score(9.5)
-                .occurrence(5)
+                .occurrence(5.0)
                 .explanation("Test explanation")
                 .build();
 
