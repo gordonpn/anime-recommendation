@@ -19,7 +19,7 @@ public class TokenInitializationService {
 
     @PostConstruct
     public void initializeTokens() {
-        log.info("Looking for existing tokens in database...");
+        log.info("Looking for existing tokens in database");
         TokenResponse latestToken = tokenRepository.findFirstByOrderByIdDesc();
 
         if (latestToken != null) {

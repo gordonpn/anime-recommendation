@@ -27,7 +27,7 @@ public class ListCommands {
 
     @ShellMethod(key = "sync", value = "Synchronize MyAnimeList lists to local SQLite database")
     public String sync() throws JsonProcessingException {
-        log.info("Triggering list synchronization...");
+        log.info("Triggering list synchronization");
         backgroundFetchService.fetchList();
         return "List sync completed successfully!";
     }

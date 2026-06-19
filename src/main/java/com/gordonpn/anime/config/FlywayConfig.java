@@ -19,7 +19,7 @@ public class FlywayConfig {
 
     @Bean
     public Flyway flyway(DataSource dataSource) {
-        log.info("Initializing Flyway...");
+        log.info("Initializing Flyway");
         log.info("Database URL from properties: {}", dbUrl);
 
         if (dataSource instanceof SQLiteDataSource sqliteDS) {

@@ -40,7 +40,7 @@ public class AnimeService {
             log.info("Cache expired for anime ID: {}", animeId);
         }
 
-        log.info("Cache miss or expired for anime ID: {}. Fetching from MAL...", animeId);
+        log.info("Cache miss or expired for anime ID: {}. Fetching from MAL", animeId);
         String body;
         try {
             body = apiKeyClient.get()
@@ -91,7 +91,7 @@ public class AnimeService {
             log.info("Cache expired for seasonal anime key: {}", cacheKey);
         }
 
-        log.info("Cache miss or expired for seasonal anime key: {}. Fetching from MAL...", cacheKey);
+        log.info("Cache miss or expired for seasonal anime key: {}. Fetching from MAL", cacheKey);
         String body;
         try {
             body = apiKeyClient.get()

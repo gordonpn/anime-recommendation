@@ -41,7 +41,7 @@ public class UserListService {
             log.info("Cache expired for user list key: {}", cacheKey);
         }
 
-        log.info("Cache miss or expired for user list key: {}. Fetching from MAL...", cacheKey);
+        log.info("Cache miss or expired for user list key: {}. Fetching from MAL", cacheKey);
         String body;
         try {
             body = apiKeyClient.get()
