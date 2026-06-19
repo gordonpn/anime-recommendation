@@ -46,19 +46,18 @@ public class RecommendationService {
         return legacyMap;
     }
 
-    public void getSuggestions() throws JsonProcessingException {
+    public AnimeList getSuggestions() throws JsonProcessingException {
         var body = apiKeyClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/anime/suggestions")
-                        .queryParam("fields", "id")
+                        .queryParam("fields", "id,title")
                         .build())
                 .retrieve()
                 .toEntity(String.class)
                 .getBody();
 
-        log.info("Suggestions: {}", body);
+        log.debug("Suggestions response: {}", body);
 
-        AnimeDetails animeDetails = objectMapper.readValue(body, AnimeDetails.class);
-        log.info("Anime details fetched: {}", animeDetails.title);
+        return objectMapper.readValue(body, AnimeList.class);
     }
 }

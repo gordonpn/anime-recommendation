@@ -3,6 +3,8 @@ package com.gordonpn.anime.commands;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gordonpn.anime.models.AnimeDetails;
+import com.gordonpn.anime.models.AnimeList;
+import com.gordonpn.anime.models.Node;
 import com.gordonpn.anime.models.Datum;
 import com.gordonpn.anime.models.RelatedAnime;
 import com.gordonpn.anime.models.SeasonalAnime;
@@ -266,7 +268,33 @@ public class RecommendationCommands {
     }
 
     @ShellMethod(key = "suggestions", value = "Retrieve personalized anime suggestions directly from MyAnimeList's native recommendations engine.")
-    public void suggestions() throws JsonProcessingException {
-        recommendationService.getSuggestions();
+    public String suggestions(
+            @ShellOption(defaultValue = "false", help = "Output the suggestions in JSON format") boolean json,
+            @ShellOption(defaultValue = "10", help = "Maximum number of suggestions to return") int limit) throws JsonProcessingException {
+        AnimeList suggestionsList = recommendationService.getSuggestions();
+        List<Datum> data = suggestionsList != null ? suggestionsList.getData() : Collections.emptyList();
+
+        if (json) {
+            return objectMapper.writeValueAsString(data.stream().limit(limit).toList());
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("\n=== Personalized Suggestions from MyAnimeList ===\n");
+        sb.append(String.format("%-4s | %-10s | %s\n", "Rank", "ID", "Title"));
+        sb.append("-".repeat(60)).append("\n");
+
+        int count = Math.min(data.size(), limit);
+        for (int i = 0; i < count; i++) {
+            Datum d = data.get(i);
+            Node node = d.getNode();
+            if (node != null) {
+                sb.append(String.format("%-4d | %-10d | %s\n",
+                        i + 1,
+                        node.getId(),
+                        node.getTitle() != null ? node.getTitle() : "Unknown"));
+            }
+        }
+        sb.append("==================================================\n");
+        return sb.toString();
     }
 }
