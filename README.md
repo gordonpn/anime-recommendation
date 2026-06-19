@@ -13,6 +13,8 @@ The project integrates with **MyAnimeList (MAL)** for authentication and data re
 - Spring Data JPA + SQLite
 - Flyway migrations
 - Lombok
+- MyAnimeList API (OAuth 2.0, anime metadata, recommendations)
+- AniList GraphQL API (alternate anime lookup source)
 
 ## Current Capabilities
 
@@ -22,6 +24,8 @@ The project integrates with **MyAnimeList (MAL)** for authentication and data re
 - Aggregate MAL recommendations based on completed titles.
 - Seasonal recommendation helper command.
 - Scheduled background sync of user list statuses.
+- Series grouping and franchise consolidation using related anime graphs.
+- Multi-signal recommendation ranking (occurrence, user rating, popularity).
 
 ## Target Direction
 
