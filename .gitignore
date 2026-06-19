@@ -39,3 +39,5 @@ recommendation.log
 logs.txt
 **/.DS_Store
 anime.db
+.env
+.env.local
