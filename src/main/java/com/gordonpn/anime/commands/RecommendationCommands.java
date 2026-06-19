@@ -222,7 +222,7 @@ public class RecommendationCommands {
                 }
             }
 
-            String finalTitle = representative != null ? representative.getTitle() : "Unknown Series";
+            String finalTitle = representative != null ? representative.getDisplayTitle() : "Unknown Series";
             Integer repId = representative != null ? representative.getId() : componentSeasonalIds.get(0);
 
             consolidatedResults.add(SeasonalAnimeResult.builder()
@@ -291,7 +291,7 @@ public class RecommendationCommands {
                 sb.append(String.format("%-4d | %-10d | %s\n",
                         i + 1,
                         node.getId(),
-                        node.getTitle() != null ? node.getTitle() : "Unknown"));
+                        node.getDisplayTitle() != null ? node.getDisplayTitle() : "Unknown"));
             }
         }
         sb.append("==================================================\n");

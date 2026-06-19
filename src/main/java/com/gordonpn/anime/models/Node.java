@@ -22,7 +22,14 @@ public class Node {
     public MainPicture mainPicture;
     @JsonProperty("mean")
     public Double mean;
-    @JsonProperty("popularity")
-    public Integer popularity;
+    @JsonProperty("alternative_titles")
+    public AlternativeTitles alternativeTitles;
+
+    public String getDisplayTitle() {
+        if (alternativeTitles != null && alternativeTitles.getEn() != null && !alternativeTitles.getEn().trim().isEmpty()) {
+            return alternativeTitles.getEn();
+        }
+        return title;
+    }
 
 }

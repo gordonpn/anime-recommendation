@@ -161,7 +161,7 @@ public class RecommendationFacade {
                 AnimeDetails det = detailsMap.get(id);
                 if (det != null && det.getPopularity() != null && det.getPopularity() < minPopularity) {
                     minPopularity = det.getPopularity();
-                    representativeTitle = det.getTitle();
+                    representativeTitle = det.getDisplayTitle();
                 }
             }
 
@@ -248,7 +248,7 @@ public class RecommendationFacade {
 
                 detailedResults.add(RecommendationDetailedResult.builder()
                         .id(candidateId)
-                        .title(details.getTitle())
+                        .title(details.getDisplayTitle())
                         .score(score)
                         .occurrence(occurrence)
                         .meanRating(overallRating)

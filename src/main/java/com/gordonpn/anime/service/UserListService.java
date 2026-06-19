@@ -45,12 +45,16 @@ public class UserListService {
         try {
             String body = apiKeyClient.get()
                     .uri(uriBuilder -> {
-                        uriBuilder.path("/users/{userName}/animelist")
+                        java.net.URI uri = uriBuilder.path("/users/{userName}/animelist")
                                 .queryParam("sort", "list_score")
                                 .queryParam("limit", MAX)
-                                .queryParam("status", status.getType());
+                                .queryParam("status", status.getType())
+                                .build(userName);
 
-                        return uriBuilder.build(userName);
+                        return org.springframework.web.util.UriComponentsBuilder.fromUri(uri)
+                                .queryParam("fields", "list_status{score},alternative_titles")
+                                .build(true)
+                                .toUri();
                     })
                     .retrieve()
                     .toEntity(String.class)

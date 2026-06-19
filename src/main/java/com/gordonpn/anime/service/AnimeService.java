@@ -45,19 +45,19 @@ public class AnimeService {
             String body = apiKeyClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/anime/{animeId}")
-                            .queryParam("fields", "id,title,recommendations,mean,popularity,related_anime")
+                            .queryParam("fields", "id,title,recommendations,mean,popularity,related_anime,alternative_titles")
                             .build(animeId))
                     .retrieve()
                     .toEntity(String.class)
                     .getBody();
 
             AnimeDetails animeDetails = objectMapper.readValue(body, AnimeDetails.class);
-            log.info("Anime details fetched: {}", animeDetails.title);
+            log.info("Anime details fetched: {}", animeDetails.getDisplayTitle());
 
             // Save/Update to cache on success
             AnimeCacheEntity cacheEntry = cachedOpt.orElse(new AnimeCacheEntity());
             cacheEntry.setAnimeId(animeId);
-            cacheEntry.setTitle(animeDetails.getTitle() != null ? animeDetails.getTitle() : "Unknown");
+            cacheEntry.setTitle(animeDetails.getDisplayTitle() != null ? animeDetails.getDisplayTitle() : "Unknown");
             cacheEntry.setDetailsJson(body);
             cacheEntry.setCachedAt(LocalDateTime.now());
             animeCacheRepository.save(cacheEntry);
@@ -99,7 +99,7 @@ public class AnimeService {
             String body = apiKeyClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/anime/season/{year}/{season}")
-                            .queryParam("fields", "id,title,mean")
+                            .queryParam("fields", "id,title,mean,alternative_titles")
                             .queryParam("limit", "500")
                             .queryParam("sort", "anime_score")
                             .build(year, season))

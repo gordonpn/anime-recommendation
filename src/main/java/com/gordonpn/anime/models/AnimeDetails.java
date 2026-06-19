@@ -110,4 +110,10 @@ public class AnimeDetails {
     @JsonProperty("statistics")
     public Statistics statistics;
 
+    public String getDisplayTitle() {
+        if (alternativeTitles != null && alternativeTitles.getEn() != null && !alternativeTitles.getEn().trim().isEmpty()) {
+            return alternativeTitles.getEn();
+        }
+        return title;
+    }
 }
