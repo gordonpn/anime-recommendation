@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gordonpn.anime.entity.GenericCacheEntity;
 import com.gordonpn.anime.models.AnimeList;
+import com.gordonpn.anime.models.MalResourceNotFoundException;
 import com.gordonpn.anime.models.userlist.Status;
 import com.gordonpn.anime.repository.GenericCacheRepository;
 import lombok.RequiredArgsConstructor;
@@ -61,7 +62,7 @@ public class UserListService {
                     .getBody();
 
             if (body == null || body.trim().startsWith("<")) {
-                throw new IllegalArgumentException("MAL API returned an HTML page (likely a 404 or rate-limit) instead of a JSON payload.");
+                throw new MalResourceNotFoundException("MAL API returned an HTML page (likely a 404 or rate-limit) instead of a JSON payload.");
             }
 
             AnimeList animeList = objectMapper.readValue(body, AnimeList.class);

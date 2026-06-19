@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gordonpn.anime.entity.AnimeCacheEntity;
 import com.gordonpn.anime.entity.GenericCacheEntity;
 import com.gordonpn.anime.models.AnimeDetails;
+import com.gordonpn.anime.models.MalResourceNotFoundException;
 import com.gordonpn.anime.models.SeasonalAnime;
 import com.gordonpn.anime.repository.AnimeCacheRepository;
 import com.gordonpn.anime.repository.GenericCacheRepository;
@@ -52,7 +53,7 @@ public class AnimeService {
                     .getBody();
 
             if (body == null || body.trim().startsWith("<")) {
-                throw new IllegalArgumentException("MAL API returned an HTML page (likely a 404 or rate-limit) instead of a JSON payload.");
+                throw new MalResourceNotFoundException("MAL API returned an HTML page (likely a 404 or rate-limit) instead of a JSON payload.");
             }
 
             AnimeDetails animeDetails = objectMapper.readValue(body, AnimeDetails.class);
@@ -112,7 +113,7 @@ public class AnimeService {
                     .getBody();
 
             if (body == null || body.trim().startsWith("<")) {
-                throw new IllegalArgumentException("MAL API returned an HTML page (likely a 404 or rate-limit) instead of a JSON payload.");
+                throw new MalResourceNotFoundException("MAL API returned an HTML page (likely a 404 or rate-limit) instead of a JSON payload.");
             }
 
             SeasonalAnime seasonalAnime = objectMapper.readValue(body, SeasonalAnime.class);

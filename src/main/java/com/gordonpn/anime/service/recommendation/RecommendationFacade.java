@@ -96,6 +96,8 @@ public class RecommendationFacade {
                         }
                     }
                 }
+            } catch (MalResourceNotFoundException e) {
+                log.warn("Completed anime ID {} not found on MyAnimeList: {}", completedId, e.getMessage());
             } catch (Exception e) {
                 log.error("Failed to fetch details/relations for completed anime ID: {}", completedId, e);
             }
@@ -255,6 +257,8 @@ public class RecommendationFacade {
                         .popularity(details.getPopularity())
                         .explanation(explanation)
                         .build());
+            } catch (MalResourceNotFoundException e) {
+                log.warn("Candidate anime ID {} not found on MyAnimeList, skipping: {}", candidateId, e.getMessage());
             } catch (Exception e) {
                 log.error("Failed to rank candidate ID: {}", candidateId, e);
             }

@@ -9,6 +9,7 @@ import com.gordonpn.anime.models.Datum;
 import com.gordonpn.anime.models.RelatedAnime;
 import com.gordonpn.anime.models.SeasonalAnime;
 import com.gordonpn.anime.models.SeasonalAnimeResult;
+import com.gordonpn.anime.models.MalResourceNotFoundException;
 import com.gordonpn.anime.service.AnimeService;
 import com.gordonpn.anime.service.RecommendationService;
 import lombok.RequiredArgsConstructor;
@@ -135,6 +136,8 @@ public class RecommendationCommands {
                         }
                     }
                 }
+            } catch (MalResourceNotFoundException e) {
+                log.warn("Seasonal anime ID {} not found on MyAnimeList, skipping: {}", id, e.getMessage());
             } catch (Exception e) {
                 log.error("Failed to fetch relations for seasonal anime ID: {}", id, e);
             }
