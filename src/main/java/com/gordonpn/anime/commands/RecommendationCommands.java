@@ -92,8 +92,7 @@ public class RecommendationCommands {
                 a.getMean() == null ? Double.MIN_VALUE : a.getMean()).reversed());
 
         for (Datum datum : allData) {
-            AnimeDetails animeDetails = animeService.getAnimeById(datum.getNode().getId());
-            Double meanScore = animeDetails.getMean();
+            Double meanScore = datum.getNode().getMean();
             SeasonalAnimeResult seasonalAnimeResult = SeasonalAnimeResult.builder()
                     .id(datum.getNode().getId())
                     .title(datum.getNode().getTitle())

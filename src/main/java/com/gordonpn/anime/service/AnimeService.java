@@ -75,7 +75,7 @@ public class AnimeService {
         var body = apiKeyClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/anime/season/{year}/{season}")
-                        .queryParam("fields", "id")
+                        .queryParam("fields", "id,title,mean")
                         .queryParam("limit", "500")
                         .queryParam("sort", "anime_score")
                         .build(year, season))

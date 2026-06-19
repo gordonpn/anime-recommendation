@@ -20,5 +20,9 @@ public class Node {
     public String title;
     @JsonProperty("main_picture")
     public MainPicture mainPicture;
+    @JsonProperty("mean")
+    public Double mean;
+    @JsonProperty("popularity")
+    public Integer popularity;
 
 }
