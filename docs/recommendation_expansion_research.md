@@ -42,23 +42,30 @@ Applying statistics and probability can shift the recommendation logic from a ba
 
 ## 2. CLI Application Feature Expansions
 
-Here are several ways we can expand the command-line interface itself to increase usability:
+Here are several specific ways we can expand the command-line interface itself to increase usability and recommendation control:
 
-1.  **Interactive Recommendation Tuner:**
-    *   Implement an interactive mode (using CLI prompts or JLine) where the user is asked questions like *"How much do you value popularity? (Low/Medium/High)"* or *"What release era do you prefer?"* to dynamically override properties weights.
-2.  **Advanced CLI Filtering Options:**
-    *   Support flags for targeting specific niches, e.g.:
-      ```bash
-      recommendation --genres Action,Sci-Fi --exclude-movies --min-rating 7.5 --max-episodes 26
-      ```
-3.  **User List Analytics (`analytics` Command):**
-    *   Process the local SQLite database to print user statistics:
-        *   Favorite studios (highest average user score/completion rate).
-        *   Favorite genres/themes.
-        *   A histogram showing user score distribution.
-        *   Total watch time (calculated from episode counts and average episode durations).
-4.  **Pagination and Interactive TUI (Text User Interface):**
-    *   Use a terminal interface library (like Lanterna or JLine widgets) to support interactive scrolling, collapsible explanation panels, and clean keyboard navigation.
+1. **Niche vs. Mainstream Tuner (`--min-similarity`):**
+   * **Concept:** MAL's recommendations contain an agreement count of how many users voted for the link. Filter out weak connections by specifying a minimum agreement threshold.
+   * **CLI Command:** `recommendation --min-similarity 10` (strict, high-consensus classics) or `recommendation --min-similarity 1` (adventurous, niche/rare suggestions).
+2. **Targeted Search (`--seed`):**
+   * **Concept:** Generate recommendations starting from a single specific show (or franchise component) rather than scanning the entire completed watchlist.
+   * **CLI Command:** `recommendation --seed "Steins;Gate"` or `recommendation --seed 9253` (ideal for finding similar shows right after finishing one).
+3. **Advanced Genre & Studio Filters (`--genres` / `--exclude-genres`):**
+   * **Concept:** Filter the candidate recommendations list by genre tags or animation studios.
+   * **CLI Command:** `recommendation --genres Action,Sci-Fi --exclude-genres Romance`
+4. **Format & Length Constraints (`--type` / `--max-episodes`):**
+   * **Concept:** Limit recommendations based on the runtime format (e.g. movies only) or maximum series duration.
+   * **CLI Command:** `recommendation --type movie` or `recommendation --max-episodes 13` (short-form shows).
+5. **Release Era Selector (`--min-year` / `--max-year`):**
+   * **Concept:** Filter suggestions by release decade to target retro/classic anime or focus only on recent releases.
+   * **CLI Command:** `recommendation --max-year 2005` (classic era discovery).
+6. **Interactive Detail Explainer (`recommendation-detail <id>`):**
+   * **Concept:** A separate command that displays details for a recommended show (synopsis, studio, MAL score) and prints the specific user recommendation comments showing why it matches your watched history.
+   * **CLI Command:** `recommendation-detail 30015`
+7. **User List Analytics (`analytics` Command):**
+   * **Concept:** Analyze the local SQLite database to print user statistics: favorite studios, favorite genres, score distribution histograms, and total watch time.
+8. **Pagination and Interactive TUI (Text User Interface):**
+   * **Concept:** Use a terminal interface library (like Lanterna or JLine widgets) to support interactive scrolling and collapsible explanation panels.
 
 ---
 
