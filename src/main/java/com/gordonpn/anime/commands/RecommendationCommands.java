@@ -74,7 +74,10 @@ public class RecommendationCommands {
     }
 
     @ShellMethod(key = "seasonal", value = "Seasonal recommendation command")
-    public String seasonal(@ShellOption(defaultValue = "5") String numYears) throws JsonProcessingException {
+    public String seasonal(
+            @ShellOption(defaultValue = "5") String numYears,
+            @ShellOption(defaultValue = "false") boolean json,
+            @ShellOption(defaultValue = "15") int limit) throws JsonProcessingException {
         var seasons = List.of("winter", "spring", "summer", "fall");
         var years = Integer.parseInt(numYears);
 
@@ -102,9 +105,31 @@ public class RecommendationCommands {
             sortedResult.add(seasonalAnimeResult);
         }
 
-        log.info("Sorted: {}", sortedResult);
+        if (json) {
+            return objectMapper.writeValueAsString(sortedResult.stream().limit(limit).toList());
+        }
 
-        return objectMapper.writeValueAsString(sortedResult);
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("\n=== Top Seasonal Anime (Past %s Years) ===\n", numYears));
+        sb.append(String.format("%-4s | %-50s | %-6s\n", "Rank", "Title", "Rating"));
+        sb.append("-".repeat(66)).append("\n");
+        int rank = 1;
+        for (SeasonalAnimeResult res : sortedResult) {
+            if (rank > limit) {
+                break;
+            }
+            String title = res.getTitle() != null ? res.getTitle() : "Unknown";
+            if (title.length() > 50) {
+                title = title.substring(0, 47) + "...";
+            }
+            sb.append(String.format("%-4d | %-50s | %-6.2f\n",
+                    rank,
+                    title,
+                    res.getMean() != null ? res.getMean() : 0.0));
+            rank++;
+        }
+        sb.append("==========================================\n");
+        return sb.toString();
     }
 
     @ShellMethod(key = "suggestions", value = "Suggestions command")
