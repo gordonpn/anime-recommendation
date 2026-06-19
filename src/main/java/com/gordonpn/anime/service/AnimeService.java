@@ -41,9 +41,8 @@ public class AnimeService {
         }
 
         log.info("Cache miss or expired for anime ID: {}. Fetching from MAL", animeId);
-        String body;
         try {
-            body = apiKeyClient.get()
+            String body = apiKeyClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/anime/{animeId}")
                             .queryParam("fields", "id,title,recommendations,mean,popularity,related_anime")
@@ -51,27 +50,31 @@ public class AnimeService {
                     .retrieve()
                     .toEntity(String.class)
                     .getBody();
+
+            AnimeDetails animeDetails = objectMapper.readValue(body, AnimeDetails.class);
+            log.info("Anime details fetched: {}", animeDetails.title);
+
+            // Save/Update to cache on success
+            AnimeCacheEntity cacheEntry = cachedOpt.orElse(new AnimeCacheEntity());
+            cacheEntry.setAnimeId(animeId);
+            cacheEntry.setTitle(animeDetails.getTitle() != null ? animeDetails.getTitle() : "Unknown");
+            cacheEntry.setDetailsJson(body);
+            cacheEntry.setCachedAt(LocalDateTime.now());
+            animeCacheRepository.save(cacheEntry);
+
+            return animeDetails;
         } catch (Exception e) {
-            log.error("Failed to fetch anime ID {} from MAL: {}", animeId, e.getMessage());
+            log.error("Failed to fetch or parse anime ID {} from MAL: {}", animeId, e.getMessage());
             if (cachedOpt.isPresent()) {
                 log.warn("Falling back to expired cache for anime ID: {}", animeId);
-                return objectMapper.readValue(cachedOpt.get().getDetailsJson(), AnimeDetails.class);
+                try {
+                    return objectMapper.readValue(cachedOpt.get().getDetailsJson(), AnimeDetails.class);
+                } catch (Exception ex) {
+                    log.error("Failed to parse expired cache for anime ID {}: {}", animeId, ex.getMessage());
+                }
             }
             throw e;
         }
-
-        AnimeDetails animeDetails = objectMapper.readValue(body, AnimeDetails.class);
-        log.info("Anime details fetched: {}", animeDetails.title);
-
-        // Save/Update to cache
-        AnimeCacheEntity cacheEntry = cachedOpt.orElse(new AnimeCacheEntity());
-        cacheEntry.setAnimeId(animeId);
-        cacheEntry.setTitle(animeDetails.getTitle() != null ? animeDetails.getTitle() : "Unknown");
-        cacheEntry.setDetailsJson(body);
-        cacheEntry.setCachedAt(LocalDateTime.now());
-        animeCacheRepository.save(cacheEntry);
-
-        return animeDetails;
     }
 
     public SeasonalAnime getSeasonalAnime(String season, int year) throws JsonProcessingException {
@@ -92,9 +95,8 @@ public class AnimeService {
         }
 
         log.info("Cache miss or expired for seasonal anime key: {}. Fetching from MAL", cacheKey);
-        String body;
         try {
-            body = apiKeyClient.get()
+            String body = apiKeyClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/anime/season/{year}/{season}")
                             .queryParam("fields", "id,title,mean")
@@ -104,26 +106,29 @@ public class AnimeService {
                     .retrieve()
                     .toEntity(String.class)
                     .getBody();
+
+            SeasonalAnime seasonalAnime = objectMapper.readValue(body, SeasonalAnime.class);
+            log.debug("Seasonal anime fetched from MAL API and parsed successfully");
+
+            // Save/Update to cache on success
+            GenericCacheEntity cacheEntry = cachedOpt.orElse(new GenericCacheEntity());
+            cacheEntry.setCacheKey(cacheKey);
+            cacheEntry.setCacheValue(body);
+            cacheEntry.setCachedAt(LocalDateTime.now());
+            genericCacheRepository.save(cacheEntry);
+
+            return seasonalAnime;
         } catch (Exception e) {
-            log.error("Failed to fetch seasonal anime key {} from MAL: {}", cacheKey, e.getMessage());
+            log.error("Failed to fetch or parse seasonal anime key {} from MAL: {}", cacheKey, e.getMessage());
             if (cachedOpt.isPresent()) {
                 log.warn("Falling back to expired cache for seasonal anime key: {}", cacheKey);
-                return objectMapper.readValue(cachedOpt.get().getCacheValue(), SeasonalAnime.class);
+                try {
+                    return objectMapper.readValue(cachedOpt.get().getCacheValue(), SeasonalAnime.class);
+                } catch (Exception ex) {
+                    log.error("Failed to parse expired cache for seasonal anime key {}: {}", cacheKey, ex.getMessage());
+                }
             }
             throw e;
         }
-
-        log.debug("Seasonal anime fetched from MAL API: {}", body);
-
-        // Save/Update to cache
-        GenericCacheEntity cacheEntry = cachedOpt.orElse(new GenericCacheEntity());
-        cacheEntry.setCacheKey(cacheKey);
-        cacheEntry.setCacheValue(body);
-        cacheEntry.setCachedAt(LocalDateTime.now());
-        genericCacheRepository.save(cacheEntry);
-
-        SeasonalAnime seasonalAnime = objectMapper.readValue(body, SeasonalAnime.class);
-        log.debug("Seasonal anime deserialized: {}", seasonalAnime);
-        return seasonalAnime;
     }
 }

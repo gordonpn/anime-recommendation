@@ -42,9 +42,8 @@ public class UserListService {
         }
 
         log.info("Cache miss or expired for user list key: {}. Fetching from MAL", cacheKey);
-        String body;
         try {
-            body = apiKeyClient.get()
+            String body = apiKeyClient.get()
                     .uri(uriBuilder -> {
                         uriBuilder.path("/users/{userName}/animelist")
                                 .queryParam("sort", "list_score")
@@ -56,24 +55,29 @@ public class UserListService {
                     .retrieve()
                     .toEntity(String.class)
                     .getBody();
+
+            AnimeList animeList = objectMapper.readValue(body, AnimeList.class);
+            log.debug("User list fetched from MAL API and parsed successfully");
+
+            // Save/Update to cache
+            GenericCacheEntity cacheEntry = cachedOpt.orElse(new GenericCacheEntity());
+            cacheEntry.setCacheKey(cacheKey);
+            cacheEntry.setCacheValue(body);
+            cacheEntry.setCachedAt(LocalDateTime.now());
+            genericCacheRepository.save(cacheEntry);
+
+            return animeList;
         } catch (Exception e) {
-            log.error("Failed to fetch user list key {} from MAL: {}", cacheKey, e.getMessage());
+            log.error("Failed to fetch or parse user list key {} from MAL: {}", cacheKey, e.getMessage());
             if (cachedOpt.isPresent()) {
                 log.warn("Falling back to expired cache for user list key: {}", cacheKey);
-                return objectMapper.readValue(cachedOpt.get().getCacheValue(), AnimeList.class);
+                try {
+                    return objectMapper.readValue(cachedOpt.get().getCacheValue(), AnimeList.class);
+                } catch (Exception ex) {
+                    log.error("Failed to parse expired cache for user list key {}: {}", cacheKey, ex.getMessage());
+                }
             }
             throw e;
         }
-
-        log.debug("User list fetched from MAL API: {}", body);
-
-        // Save/Update to cache
-        GenericCacheEntity cacheEntry = cachedOpt.orElse(new GenericCacheEntity());
-        cacheEntry.setCacheKey(cacheKey);
-        cacheEntry.setCacheValue(body);
-        cacheEntry.setCachedAt(LocalDateTime.now());
-        genericCacheRepository.save(cacheEntry);
-
-        return objectMapper.readValue(body, AnimeList.class);
     }
 }
