@@ -3,6 +3,7 @@ package com.gordonpn.anime.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gordonpn.anime.models.AnimeDetails;
 import com.gordonpn.anime.models.SeasonalAnime;
+import com.gordonpn.anime.repository.AnimeCacheRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestClient;
 
+import java.util.Optional;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -32,19 +34,23 @@ public class AnimeServiceTests {
     @Mock
     private ResponseEntity<String> responseEntity;
 
+    @Mock
+    private AnimeCacheRepository animeCacheRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private AnimeService animeService;
 
     @BeforeEach
     public void setUp() {
-        animeService = new AnimeService(objectMapper, apiKeyClient);
+        animeService = new AnimeService(objectMapper, apiKeyClient, animeCacheRepository);
     }
 
     @Test
     public void testGetAnimeById() throws Exception {
         String jsonResponse = "{\"id\":123,\"title\":\"Test Anime\"}";
 
+        when(animeCacheRepository.findById(123)).thenReturn(Optional.empty());
         when(apiKeyClient.get()).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.uri(any(Function.class))).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.retrieve()).thenReturn(responseSpec);
