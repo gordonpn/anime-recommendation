@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gordonpn.anime.models.AnimeDetails;
 import com.gordonpn.anime.models.Datum;
+import com.gordonpn.anime.models.RelatedAnime;
 import com.gordonpn.anime.models.SeasonalAnime;
 import com.gordonpn.anime.models.SeasonalAnimeResult;
 import com.gordonpn.anime.service.AnimeService;
@@ -17,9 +18,14 @@ import org.springframework.shell.standard.ShellOption;
 
 import java.time.Year;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -87,23 +93,141 @@ public class RecommendationCommands {
             for (String season : seasons) {
                 SeasonalAnime seasonalAnime = animeService.getSeasonalAnime(season, currentYear - i);
                 List<Datum> data = seasonalAnime.getData();
-                allData.addAll(data);
+                if (data != null) {
+                    allData.addAll(data);
+                }
             }
         }
 
-        Set<SeasonalAnimeResult> sortedResult = new TreeSet<>(Comparator.<SeasonalAnimeResult>comparingDouble(a ->
-                a.getMean() == null ? Double.MIN_VALUE : a.getMean()).reversed());
+        // 1. Sort the raw seasonal data by mean score descending to find candidate items
+        List<Datum> topSeasonal = allData.stream()
+                .filter(d -> d.getNode() != null && d.getNode().getId() != null)
+                .sorted((d1, d2) -> {
+                    Double m1 = d1.getNode().getMean();
+                    Double m2 = d2.getNode().getMean();
+                    return Double.compare(m2 != null ? m2 : 0.0, m1 != null ? m1 : 0.0);
+                })
+                .limit(Math.max(100, limit * 3))
+                .toList();
 
-        for (Datum datum : allData) {
-            Double meanScore = datum.getNode().getMean();
-            SeasonalAnimeResult seasonalAnimeResult = SeasonalAnimeResult.builder()
-                    .id(datum.getNode().getId())
-                    .title(datum.getNode().getTitle())
-                    .mean(meanScore)
-                    .build();
+        // 2. Fetch full details (with related_anime) and build relationship graph
+        Map<Integer, Set<Integer>> graph = new HashMap<>();
+        Map<Integer, AnimeDetails> detailsMap = new HashMap<>();
 
-            sortedResult.add(seasonalAnimeResult);
+        for (Datum datum : topSeasonal) {
+            Integer id = datum.getNode().getId();
+            try {
+                AnimeDetails details = animeService.getAnimeById(id);
+                detailsMap.put(id, details);
+
+                graph.putIfAbsent(id, new HashSet<>());
+
+                List<RelatedAnime> related = details.getRelatedAnime();
+                if (related != null) {
+                    for (RelatedAnime rel : related) {
+                        if (rel.getNode() != null && rel.getNode().getId() != null) {
+                            Integer relId = rel.getNode().getId();
+                            graph.putIfAbsent(relId, new HashSet<>());
+                            graph.get(id).add(relId);
+                            graph.get(relId).add(id);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Failed to fetch relations for seasonal anime ID: {}", id, e);
+            }
         }
+
+        // 3. Find connected components of the graph (each represents a franchise/series)
+        Set<Integer> visited = new HashSet<>();
+        List<Set<Integer>> components = new ArrayList<>();
+
+        for (Integer node : graph.keySet()) {
+            if (!visited.contains(node)) {
+                Set<Integer> component = new HashSet<>();
+                Queue<Integer> queue = new LinkedList<>();
+                queue.add(node);
+                visited.add(node);
+
+                while (!queue.isEmpty()) {
+                    Integer curr = queue.poll();
+                    component.add(curr);
+                    for (Integer neighbor : graph.getOrDefault(curr, Collections.emptySet())) {
+                        if (!visited.contains(neighbor)) {
+                            visited.add(neighbor);
+                            queue.add(neighbor);
+                        }
+                    }
+                }
+                components.add(component);
+            }
+        }
+
+        // 4. Consolidate seasonal items belonging to the same component
+        List<SeasonalAnimeResult> consolidatedResults = new ArrayList<>();
+        for (Set<Integer> component : components) {
+            List<Integer> componentSeasonalIds = new ArrayList<>();
+            for (Integer id : component) {
+                if (detailsMap.containsKey(id)) {
+                    componentSeasonalIds.add(id);
+                }
+            }
+
+            if (componentSeasonalIds.isEmpty()) {
+                continue;
+            }
+
+            // Calculate combined mean rating (arithmetic average of elements present in list)
+            double sum = 0.0;
+            int count = 0;
+            for (Integer id : componentSeasonalIds) {
+                AnimeDetails d = detailsMap.get(id);
+                if (d != null && d.getMean() != null) {
+                    sum += d.getMean();
+                    count++;
+                }
+            }
+            double combinedMean = count > 0 ? (sum / count) : 0.0;
+
+            // Pick the title of the entry with the highest popularity (lowest popularity rank)
+            AnimeDetails representative = null;
+            for (Integer id : componentSeasonalIds) {
+                AnimeDetails d = detailsMap.get(id);
+                if (d == null) continue;
+                if (representative == null) {
+                    representative = d;
+                } else {
+                    Integer pRep = representative.getPopularity();
+                    Integer pD = d.getPopularity();
+                    if (pD != null && (pRep == null || pD < pRep)) {
+                        representative = d;
+                    } else if ((pD == null && pRep == null) || (pD != null && pD.equals(pRep))) {
+                        Double mRep = representative.getMean();
+                        Double mD = d.getMean();
+                        if (mD != null && (mRep == null || mD > mRep)) {
+                            representative = d;
+                        }
+                    }
+                }
+            }
+
+            String finalTitle = representative != null ? representative.getTitle() : "Unknown Series";
+            Integer repId = representative != null ? representative.getId() : componentSeasonalIds.get(0);
+
+            consolidatedResults.add(SeasonalAnimeResult.builder()
+                    .id(repId)
+                    .title(finalTitle)
+                    .mean(combinedMean)
+                    .build());
+        }
+
+        // 5. Sort consolidated results by score descending, resolving duplicates via title and id comparison
+        Set<SeasonalAnimeResult> sortedResult = new TreeSet<>(
+                Comparator.<SeasonalAnimeResult>comparingDouble(a -> a.getMean() == null ? Double.MIN_VALUE : a.getMean()).reversed()
+                        .thenComparing(SeasonalAnimeResult::getTitle)
+                        .thenComparingInt(SeasonalAnimeResult::getId)
+        );
+        sortedResult.addAll(consolidatedResults);
 
         if (json) {
             return objectMapper.writeValueAsString(sortedResult.stream().limit(limit).toList());
