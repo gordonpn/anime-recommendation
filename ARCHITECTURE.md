@@ -165,6 +165,7 @@ Core tables:
 
 Near-term additions (optional):
 - `anime_cache` (cached MAL anime details with TTL metadata)
+- `anime_id_mapping` (cross-reference table mapping MyAnimeList IDs to AniList IDs)
 - `recommendation_snapshot` (optional offline debugging/audit)
 
 ## 9) Operational Requirements
@@ -236,7 +237,36 @@ Acceptance criteria:
 - No frontend in this repository.
 - No microservice decomposition.
 
-## 12) Migration Notes
+## 11) Multi-Source Anime Lookup (AniList + MyAnimeList Cross-Referencing)
+
+The system supports cross-referencing anime across multiple databases:
+
+- **MyAnimeList (primary)**: Used for user authentication, list management, and primary recommendation source.
+- **AniList (secondary)**: Provides GraphQL-based queries for supplementary anime metadata and ID cross-referencing.
+
+### Strategy
+
+1. User searches for an anime by title.
+2. First lookup in AniList (GraphQL, typically faster for large datasets).
+3. Use AniList ID to find corresponding MyAnimeList ID via `anime_id_mapping` cache.
+4. Retrieve full recommendation chain from MyAnimeList.
+
+This dual-source approach improves search accuracy and availability (fallback to alternate source if one API is unavailable).
+
+## 12) Advanced: Vector Search (vec2vec) for Similarity Ranking
+
+**Phase E+ exploration:** Evaluate embedding-based recommendation refinement:
+
+- **Java-native options**:
+  - **Lucene KNN**: Built-in approximate nearest neighbor search.
+  - **OpenSearch**: Distributed vector search engine.
+  - **pgvector**: PostgreSQL vector extension (if migrating from SQLite).
+
+- **Use case**: Instead of purely occurrence-based ranking, embed anime descriptions/metadata and use vector similarity to identify recommendations that are semantically similar to user preferences, not just directly recommended.
+
+- **Gradual rollout**: Introduce as optional scoring signal (remains backward-compatible with current occurrence-based ranking).
+
+## 13) Migration Notes
 
 - Keep changes incremental and backward-compatible.
 - Prefer adding controllers over rewriting command classes.
