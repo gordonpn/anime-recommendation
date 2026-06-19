@@ -58,7 +58,11 @@ public class RecommendationApplication {
         }
 
         ConfigurableApplicationContext context = app.run(args);
-        context.registerShutdownHook();
+        if ("cli".equalsIgnoreCase(mode)) {
+            context.close();
+        } else {
+            context.registerShutdownHook();
+        }
     }
 
     private static void loadDotEnv() {
