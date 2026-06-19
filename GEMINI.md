@@ -16,3 +16,12 @@
 - **Rating Calculation (Straight Average):** We use a **straight arithmetic average** of the scores of all seasonal entries in the grouped component.
   - *Rationale for picking straight average:* In anime databases, sequels naturally suffer from viewer attrition (only dedicated fanbases continue watching later seasons). As a result, early seasons (like Season 1) have a massive number of ratings, while later seasons have fewer reviews but significantly higher scores. Weighting the average by the number of ratings (sample size) would cause the Season 1 score to heavily dominate, suppressing the high acclaim of later seasons. A straight average treats each season as an equal unit of the series' overall quality, preserving sequel success.
 
+### Generic API Caching Strategy
+- **SQLite-backed Raw Response Caching:** Raw JSON response strings from MAL API (for seasonal lists and user lists) are persisted in the `generic_cache` table to reduce network roundtrips.
+- **TTL Strategy:**
+  - Past seasons (older than current year): **30 days** TTL since historical stats change very slowly.
+  - Current/future seasons: **1 day** TTL.
+  - User lists: **1 day** TTL.
+- **Fail-Safe Fallback:** If the external API is down or rate-limited, the system falls back to returning the expired cache contents rather than throwing an exception.
+
+

@@ -3,9 +3,11 @@ package com.gordonpn.anime.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gordonpn.anime.entity.AnimeCacheEntity;
+import com.gordonpn.anime.entity.GenericCacheEntity;
 import com.gordonpn.anime.models.AnimeDetails;
 import com.gordonpn.anime.models.SeasonalAnime;
 import com.gordonpn.anime.repository.AnimeCacheRepository;
+import com.gordonpn.anime.repository.GenericCacheRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -25,6 +27,7 @@ public class AnimeService {
 
     private final RestClient apiKeyClient;
     private final AnimeCacheRepository animeCacheRepository;
+    private final GenericCacheRepository genericCacheRepository;
 
     public AnimeDetails getAnimeById(int animeId) throws JsonProcessingException {
         Optional<AnimeCacheEntity> cachedOpt = animeCacheRepository.findById(animeId);
@@ -72,21 +75,55 @@ public class AnimeService {
     }
 
     public SeasonalAnime getSeasonalAnime(String season, int year) throws JsonProcessingException {
-        var body = apiKeyClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/anime/season/{year}/{season}")
-                        .queryParam("fields", "id,title,mean")
-                        .queryParam("limit", "500")
-                        .queryParam("sort", "anime_score")
-                        .build(year, season))
-                .retrieve()
-                .toEntity(String.class)
-                .getBody();
+        String cacheKey = "seasonal:" + year + ":" + season;
+        Optional<GenericCacheEntity> cachedOpt = genericCacheRepository.findById(cacheKey);
 
-        log.debug("Seasonal anime: {}", body);
+        // Determine TTL (30 days for past years, 1 day for current/future years)
+        int currentYear = java.time.LocalDate.now().getYear();
+        int ttlDays = (year < currentYear) ? 30 : 1;
+
+        if (cachedOpt.isPresent()) {
+            GenericCacheEntity cached = cachedOpt.get();
+            if (cached.getCachedAt().isAfter(LocalDateTime.now().minusDays(ttlDays))) {
+                log.debug("Cache hit for seasonal anime key: {}", cacheKey);
+                return objectMapper.readValue(cached.getCacheValue(), SeasonalAnime.class);
+            }
+            log.info("Cache expired for seasonal anime key: {}", cacheKey);
+        }
+
+        log.info("Cache miss or expired for seasonal anime key: {}. Fetching from MAL...", cacheKey);
+        String body;
+        try {
+            body = apiKeyClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/anime/season/{year}/{season}")
+                            .queryParam("fields", "id,title,mean")
+                            .queryParam("limit", "500")
+                            .queryParam("sort", "anime_score")
+                            .build(year, season))
+                    .retrieve()
+                    .toEntity(String.class)
+                    .getBody();
+        } catch (Exception e) {
+            log.error("Failed to fetch seasonal anime key {} from MAL: {}", cacheKey, e.getMessage());
+            if (cachedOpt.isPresent()) {
+                log.warn("Falling back to expired cache for seasonal anime key: {}", cacheKey);
+                return objectMapper.readValue(cachedOpt.get().getCacheValue(), SeasonalAnime.class);
+            }
+            throw e;
+        }
+
+        log.debug("Seasonal anime fetched from MAL API: {}", body);
+
+        // Save/Update to cache
+        GenericCacheEntity cacheEntry = cachedOpt.orElse(new GenericCacheEntity());
+        cacheEntry.setCacheKey(cacheKey);
+        cacheEntry.setCacheValue(body);
+        cacheEntry.setCachedAt(LocalDateTime.now());
+        genericCacheRepository.save(cacheEntry);
 
         SeasonalAnime seasonalAnime = objectMapper.readValue(body, SeasonalAnime.class);
-        log.debug("Seasonal anime fetched: {}", seasonalAnime);
+        log.debug("Seasonal anime deserialized: {}", seasonalAnime);
         return seasonalAnime;
     }
 }
