@@ -18,14 +18,14 @@ public class ListCommands {
     private final UserListService userListService;
     private final BackgroundFetchService backgroundFetchService;
 
-    @ShellMethod(key = "list", value = "List all completed animes")
-    public AnimeList list(@ShellOption(defaultValue = "@me") String userName) throws JsonProcessingException {
+    @ShellMethod(key = "list", value = "List all completed anime for a user.")
+    public AnimeList list(@ShellOption(defaultValue = "@me", help = "The MyAnimeList username, or '@me' to use the local SQLite database") String userName) throws JsonProcessingException {
         AnimeList listByUserName = userListService.getListByUserName(userName, Status.COMPLETED);
         log.info("List length fetched: {}", listByUserName.getData().size());
         return listByUserName;
     }
 
-    @ShellMethod(key = "sync", value = "Synchronize MyAnimeList lists to local SQLite database")
+    @ShellMethod(key = "sync", value = "Synchronize completed and dropped anime lists from MyAnimeList to the local SQLite database.")
     public String sync() throws JsonProcessingException {
         log.info("Triggering list synchronization");
         backgroundFetchService.fetchList();

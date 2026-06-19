@@ -43,11 +43,11 @@ public class RecommendationCommands {
     private final AnimeService animeService;
     private final RecommendationFacade recommendationFacade;
 
-    @ShellMethod(key = "recommendation", value = "Recommendation command")
+    @ShellMethod(key = "recommendation", value = "Generate personalized anime recommendations based on completed shows. Groups series, applies user rating weights, and averages candidate franchise scores.")
     public String recommendation(
-            @ShellOption(defaultValue = "@me") String userName,
-            @ShellOption(defaultValue = "false") boolean json,
-            @ShellOption(defaultValue = "10") int limit) throws JsonProcessingException {
+            @ShellOption(defaultValue = "@me", help = "The MyAnimeList username, or '@me' to use the local SQLite database") String userName,
+            @ShellOption(defaultValue = "false", help = "Output the recommendations in JSON format") boolean json,
+            @ShellOption(defaultValue = "10", help = "Maximum number of recommendations to return") int limit) throws JsonProcessingException {
         
         List<RecommendationDetailedResult> recommendations = recommendationFacade.getRecommendations(userName, limit);
         
@@ -79,11 +79,11 @@ public class RecommendationCommands {
         return sb.toString();
     }
 
-    @ShellMethod(key = "seasonal", value = "Seasonal recommendation command")
+    @ShellMethod(key = "seasonal", value = "Recommend top-rated seasonal anime from past years, grouped by franchise component.")
     public String seasonal(
-            @ShellOption(defaultValue = "5") String numYears,
-            @ShellOption(defaultValue = "false") boolean json,
-            @ShellOption(defaultValue = "15") int limit) throws JsonProcessingException {
+            @ShellOption(defaultValue = "5", help = "Number of past years of seasonal anime to search") String numYears,
+            @ShellOption(defaultValue = "false", help = "Output the seasonal rankings in JSON format") boolean json,
+            @ShellOption(defaultValue = "15", help = "Maximum number of results to display") int limit) throws JsonProcessingException {
         var seasons = List.of("winter", "spring", "summer", "fall");
         var years = Integer.parseInt(numYears);
 
@@ -265,7 +265,7 @@ public class RecommendationCommands {
         return sb.toString();
     }
 
-    @ShellMethod(key = "suggestions", value = "Suggestions command")
+    @ShellMethod(key = "suggestions", value = "Retrieve personalized anime suggestions directly from MyAnimeList's native recommendations engine.")
     public void suggestions() throws JsonProcessingException {
         recommendationService.getSuggestions();
     }
