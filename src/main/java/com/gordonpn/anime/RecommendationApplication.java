@@ -21,8 +21,10 @@ public class RecommendationApplication {
         loadDotEnv();
         validateCredentials();
 
-        SpringApplication app = new SpringApplication(RecommendationApplication.class);
         String mode = getAppMode();
+        System.setProperty("app.mode", mode);
+
+        SpringApplication app = new SpringApplication(RecommendationApplication.class);
 
         if ("cli".equalsIgnoreCase(mode)) {
             app.setWebApplicationType(WebApplicationType.NONE);
