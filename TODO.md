@@ -58,3 +58,20 @@ Scope: Java Spring hybrid CLI + API migration.
 - [ ] Add optional metadata-driven filters (year, genre, sequel handling).
 - [ ] Evaluate Java-native vector search path (Lucene/OpenSearch/pgvector).
 - [ ] Keep API contracts stable while improving ranking internals.
+
+## Phase 7: Multi-source anime lookup (AniList cross-referencing)
+
+- [ ] Integrate AniList GraphQL client.
+- [ ] Add `anime_id_mapping` table for MyAnimeList ↔ AniList ID cross-reference.
+- [ ] Implement anime search via AniList (fallback to MyAnimeList).
+- [ ] Add cross-reference caching and TTL management.
+- [ ] Add API endpoint for multi-source anime search: `GET /api/v1/anime/search?title={title}&sources=anilist,mal`.
+
+## Phase 8: Vector search and semantic similarity (vec2vec)
+
+- [ ] Evaluate Java-native vector search libraries (Lucene KNN, OpenSearch, pgvector).
+- [ ] Design embedding pipeline (anime metadata → vectors).
+- [ ] Prototype vector similarity ranking as optional scoring signal.
+- [ ] Add configuration flag to enable/disable vector scoring.
+- [ ] Measure quality improvements vs. occurrence-based ranking.
+- [ ] Maintain backward compatibility with existing recommendation API.
