@@ -51,6 +51,10 @@ public class AnimeService {
                     .toEntity(String.class)
                     .getBody();
 
+            if (body == null || body.trim().startsWith("<")) {
+                throw new IllegalArgumentException("MAL API returned an HTML page (likely a 404 or rate-limit) instead of a JSON payload.");
+            }
+
             AnimeDetails animeDetails = objectMapper.readValue(body, AnimeDetails.class);
             log.info("Anime details fetched: {}", animeDetails.getDisplayTitle());
 
@@ -106,6 +110,10 @@ public class AnimeService {
                     .retrieve()
                     .toEntity(String.class)
                     .getBody();
+
+            if (body == null || body.trim().startsWith("<")) {
+                throw new IllegalArgumentException("MAL API returned an HTML page (likely a 404 or rate-limit) instead of a JSON payload.");
+            }
 
             SeasonalAnime seasonalAnime = objectMapper.readValue(body, SeasonalAnime.class);
             log.debug("Seasonal anime fetched from MAL API and parsed successfully");

@@ -60,6 +60,10 @@ public class UserListService {
                     .toEntity(String.class)
                     .getBody();
 
+            if (body == null || body.trim().startsWith("<")) {
+                throw new IllegalArgumentException("MAL API returned an HTML page (likely a 404 or rate-limit) instead of a JSON payload.");
+            }
+
             AnimeList animeList = objectMapper.readValue(body, AnimeList.class);
             log.debug("User list fetched from MAL API and parsed successfully");
 
