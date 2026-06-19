@@ -1,0 +1,47 @@
+# Execution Tasks
+
+- [x] **Flyway Migration & DB Updates**
+  - [x] Create `V3__create_anime_cache_and_unique_user_list.sql` Flyway migration
+  - [x] Create `AnimeCacheEntity.java` JPA entity
+  - [x] Create `AnimeCacheRepository.java` interface
+- [x] **Sync Logic Deduplication**
+  - [x] Update `BackgroundFetchService.java` to use find-by-anime-id upsert logic
+  - [x] Implement deletion of local records not present in the MAL sync response
+- [x] **Details Caching**
+  - [x] Update `AnimeService.java` to search cache, check TTL, update cache, and handle network fallbacks
+- [x] **Recommendation Modularization (Phase 3)**
+  - [x] Add `RecommendationDetailedResult.java` model
+  - [x] Implement `FilteringService.java`
+  - [x] Implement `RankingService.java` with configurable weights
+  - [x] Implement `ExplanationService.java` compiling recommendation contexts
+  - [x] Implement `RecommendationFacade.java` orchestrating the pipeline
+  - [x] Update `RecommendationService.java` to delegate to the new facade
+- [x] **CLI Commands Interface**
+  - [x] Update `RecommendationCommands.java` to use the facade and format ASCIITables/JSON outputs
+- [x] **Testing & Verification (CLI Mode)**
+  - [x] Write unit tests for new services (`FilteringServiceTests`, `RankingServiceTests`, `RecommendationFacadeTests`)
+  - [x] Update existing tests to compile and pass with new service signatures
+  - [x] Run `./gradlew test` to ensure 100% success
+  - [x] Manually verify commands (`sync`, `recommendation`, `health`) run smoothly in Spring Shell
+- [x] **Series Grouping (Seasonal Recommendations)**
+  - [x] Update `AnimeService.java` details endpoint request fields to include `related_anime`
+  - [x] Implement relationship graph / connected components grouping algorithm in `RecommendationCommands.java`
+  - [x] Group series and calculate combined rating based on user preference
+  - [x] Write unit tests for the grouping logic
+  - [x] Manually verify `seasonal` output displays combined rows cleanly
+- [x] **Generic MAL API Caching**
+  - [x] Create `V4__create_generic_cache_table.sql` Flyway migration
+  - [x] Create `GenericCacheEntity.java` JPA entity
+  - [x] Create `GenericCacheRepository.java` interface
+  - [x] Update `AnimeService.java` `getSeasonalAnime` method to check/update the generic cache
+  - [x] Update `UserListService.java` `getListByUserName` method to check/update the generic cache
+  - [x] Update unit tests to mock `GenericCacheRepository`
+  - [x] Run `./gradlew test` and manually verify that cache hits avoid network requests
+- [x] **Multi-Signal Recommendation Enhancements**
+  - [x] Modify `RecommendationDetailedResult.java` `occurrence` field type to `Double`
+  - [x] Modify `ExplanationService.java` and `RankingService.java` to handle `Double` occurrences
+  - [x] Implement connected component grouping for completed watchlist shows in `RecommendationFacade.java`
+  - [x] Implement user rating weight multiplier based on average group user rating
+  - [x] Implement candidate franchise-wide rating calculation averaging the candidate and its direct franchise relations
+  - [x] Update `RecommendationCommands.java` command format strings to print `occurrence` as float
+  - [x] Update unit tests in `RecommendationFacadeTests` and run `./gradlew test`
