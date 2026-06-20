@@ -57,7 +57,7 @@ public class RecommendationCommands {
             @ShellOption(defaultValue = ShellOption.NULL, help = "Minimum release year filter") Integer minYear,
             @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum release year filter") Integer maxYear,
             @ShellOption(defaultValue = ShellOption.NULL, help = "Decay parameter in months for temporal decay weighting (half-life)") Integer decayMonths,
-            @ShellOption(defaultValue = ShellOption.NULL, help = "Freshness boost parameter for release date weighting (decay rate)") Double freshnessBoost) throws JsonProcessingException {
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Freshness boost parameter for release date weighting (decay rate)") Double freshnessBoost) {
         
         String finalUserName = userName != null ? userName : promptString("Enter MyAnimeList username", "@me");
         boolean finalJson = json != null ? json : promptBoolean("Output in JSON format?", false);
@@ -70,7 +70,11 @@ public class RecommendationCommands {
         List<RecommendationDetailedResult> recommendations = recommendationFacade.getRecommendations(finalUserName, finalLimit, finalMinYear, finalMaxYear, finalDecayMonths, finalFreshnessBoost);
         
         if (finalJson) {
-            return objectMapper.writeValueAsString(recommendations);
+            try {
+                return objectMapper.writeValueAsString(recommendations);
+            } catch (JsonProcessingException e) {
+                throw new com.gordonpn.anime.models.AnimeDataProcessingException("Failed to format recommendations as JSON", e);
+            }
         }
 
         StringBuilder sb = new StringBuilder();
@@ -101,7 +105,7 @@ public class RecommendationCommands {
     public String seasonal(
             @ShellOption(defaultValue = ShellOption.NULL, help = "Number of past years of seasonal anime to search") String numYears,
             @ShellOption(defaultValue = ShellOption.NULL, help = "Output the seasonal rankings in JSON format") Boolean json,
-            @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum number of results to display") Integer limit) throws JsonProcessingException {
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum number of results to display") Integer limit) {
         
         String finalNumYears = numYears != null ? numYears : promptString("Enter number of past years of seasonal anime to search", "5");
         boolean finalJson = json != null ? json : promptBoolean("Output the seasonal rankings in JSON format?", false);
@@ -268,7 +272,11 @@ public class RecommendationCommands {
         sortedResult.addAll(consolidatedResults);
 
         if (finalJson) {
-            return objectMapper.writeValueAsString(sortedResult.stream().limit(finalLimit).toList());
+            try {
+                return objectMapper.writeValueAsString(sortedResult.stream().limit(finalLimit).toList());
+            } catch (JsonProcessingException e) {
+                throw new com.gordonpn.anime.models.AnimeDataProcessingException("Failed to format seasonal anime as JSON", e);
+            }
         }
 
         StringBuilder sb = new StringBuilder();
@@ -297,7 +305,7 @@ public class RecommendationCommands {
     @ShellMethod(key = "suggestions", value = "Retrieve personalized anime suggestions directly from MyAnimeList's native recommendations engine.")
     public String suggestions(
             @ShellOption(defaultValue = ShellOption.NULL, help = "Output the suggestions in JSON format") Boolean json,
-            @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum number of suggestions to return") Integer limit) throws JsonProcessingException {
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum number of suggestions to return") Integer limit) {
         
         boolean finalJson = json != null ? json : promptBoolean("Output the suggestions in JSON format?", false);
         int finalLimit = limit != null ? limit : promptInt("Enter maximum number of suggestions to return", 10);
@@ -306,7 +314,11 @@ public class RecommendationCommands {
         List<Datum> data = suggestionsList != null ? suggestionsList.getData() : Collections.emptyList();
 
         if (finalJson) {
-            return objectMapper.writeValueAsString(data.stream().limit(finalLimit).toList());
+            try {
+                return objectMapper.writeValueAsString(data.stream().limit(finalLimit).toList());
+            } catch (JsonProcessingException e) {
+                throw new com.gordonpn.anime.models.AnimeDataProcessingException("Failed to format suggestions as JSON", e);
+            }
         }
 
         StringBuilder sb = new StringBuilder();

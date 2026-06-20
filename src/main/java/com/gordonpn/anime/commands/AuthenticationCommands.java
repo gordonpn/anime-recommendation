@@ -44,7 +44,7 @@ public class AuthenticationCommands {
     }
 
     @ShellMethod(key = "refresh", value = "Refresh the access token")
-    public String refresh() throws JsonProcessingException {
+    public String refresh() {
         TokenResponse tokenResponse = authorizationState.getTokenResponse();
         TokenResponse tokens = tokenExchangeService.refreshToken(tokenResponse);
         authorizationState.setTokenResponse(tokens);
