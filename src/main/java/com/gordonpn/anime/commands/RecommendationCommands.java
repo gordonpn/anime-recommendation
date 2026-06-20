@@ -156,6 +156,7 @@ public class RecommendationCommands {
                 log.warn("Seasonal anime ID {} not found on MyAnimeList, skipping: {}", id, e.getMessage());
             } catch (Exception e) {
                 log.error("Failed to fetch relations for seasonal anime ID: {}", id, e);
+                throw e;
             }
         }
 
@@ -219,8 +220,11 @@ public class RecommendationCommands {
                 } else {
                     try {
                         d = animeService.getAnimeById(id);
+                    } catch (MalResourceNotFoundException e) {
+                        log.debug("Skipping relation graph bridge detail fetch failure for ID (Not Found): {}", id);
                     } catch (Exception e) {
-                        log.debug("Skipping relation graph bridge detail fetch failure for ID: {}", id);
+                        log.error("Failed to fetch relation graph bridge detail for ID: {}", id, e);
+                        throw e;
                     }
                 }
                 if (d == null) continue;
