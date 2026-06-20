@@ -55,15 +55,17 @@ public class RecommendationCommands {
             @ShellOption(defaultValue = ShellOption.NULL, help = "Output the recommendations in JSON format") Boolean json,
             @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum number of recommendations to return") Integer limit,
             @ShellOption(defaultValue = ShellOption.NULL, help = "Minimum release year filter") Integer minYear,
-            @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum release year filter") Integer maxYear) throws JsonProcessingException {
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum release year filter") Integer maxYear,
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Decay parameter in months for temporal decay weighting (half-life)") Integer decayMonths) throws JsonProcessingException {
         
         String finalUserName = userName != null ? userName : promptString("Enter MyAnimeList username", "@me");
         boolean finalJson = json != null ? json : promptBoolean("Output in JSON format?", false);
         int finalLimit = limit != null ? limit : promptInt("Enter maximum number of recommendations to return", 10);
         Integer finalMinYear = minYear != null ? minYear : promptOptionalInt("Enter minimum release year (optional, leave blank for none)", null);
         Integer finalMaxYear = maxYear != null ? maxYear : promptOptionalInt("Enter maximum release year (optional, leave blank for none)", null);
+        Integer finalDecayMonths = decayMonths != null ? decayMonths : promptOptionalInt("Enter temporal decay half-life in months (optional, leave blank for none)", null);
 
-        List<RecommendationDetailedResult> recommendations = recommendationFacade.getRecommendations(finalUserName, finalLimit, finalMinYear, finalMaxYear);
+        List<RecommendationDetailedResult> recommendations = recommendationFacade.getRecommendations(finalUserName, finalLimit, finalMinYear, finalMaxYear, finalDecayMonths);
         
         if (finalJson) {
             return objectMapper.writeValueAsString(recommendations);
