@@ -85,3 +85,76 @@ Looking at the MyAnimeList API v2 specs, we can leverage additional fields in ou
 | `rating` | String | Content rating (e.g., pg13, r, r+). Enables filtering out or highlighting mature titles. |
 | `average_episode_duration`| Integer | Computes precise watch times in the `analytics` command. |
 | `statistics` | Object | Detailed completion statuses globally (completed, planning, dropped count) to compute popularity trends. |
+
+---
+
+## 4. Additional Feature Ideas
+
+### A. Temporal Recommendation Decay
+* **Concept:** Recent shows in the user's completed list should influence recommendations more heavily than older shows, since taste evolves over time.
+* **Implementation:** Assign decay weights based on completion date; older shows have less influence on the recommendation signal.
+* **CLI Command:** `recommendation --decay-months 12` (only consider shows completed in the last year).
+* **Educational Value:** Time-series weighting and exponential decay modeling.
+
+### B. Diversity Threshold
+* **Concept:** Recommendations can become homogeneous if heavily weighted toward a single franchise or studio. Enforce variety constraints.
+* **Implementation:** After ranking, apply diversity filters to ensure the top N results span different studios, genres, or release years.
+* **CLI Command:** `recommendation --limit 20 --diversity-factor 0.7` (balance relevance with variety).
+
+### C. User Preference Confidence Estimation
+* **Concept:** Distinguish between "confirmed preferences" (genres/studios the user consistently completes) and "experimental tastes" (shows watched once or dropped).
+* **Implementation:** Use completion ratio and score frequency to weight preference signals; high confidence = more influence.
+* **Metrics:**
+  - Preference stability score (variance in ratings for a given genre)
+  - Genre affinity ranking (what the user actually completes vs. what they plan to watch)
+
+### D. Reverse Recommendation (What Will Lead to Show X?)
+* **Concept:** Given a show the user hasn't seen yet, recommend shows from their completed list that would naturally lead to that target.
+* **CLI Command:** `reverse-recommendation --target "Steins;Gate 0"`
+* **Implementation:** Use MAL's recommendation graph in reverse; find shows the user has completed that are frequently recommended toward the target.
+
+### E. Drop Pattern Analysis & Early Warning
+* **Concept:** Identify attributes (episode count, genre combinations, pacing) that correlate with the user's drops.
+* **Implementation:** Analyze drop rate by genre, studio, source material, and runtime. Flag recommendations that match previous drop patterns.
+* **CLI Command:** `recommendation --avoid-drop-risks` (filter out shows matching known drop patterns).
+* **Output:** Include a "drop risk" score alongside each recommendation.
+
+### F. Seasonal Recommendation Streak Tracking
+* **Concept:** Users often watch seasonal releases in real-time. Track and suggest shows continuing from the current or upcoming season.
+* **Implementation:** Cache seasonal anime lists; detect which current-season shows the user has started, and recommend continuations.
+* **CLI Command:** `seasonal-recommendations --current` (recommend ongoing shows for the current season).
+
+### G. Studio Discovery Mode
+* **Concept:** Recommend all shows from a favorite studio that the user hasn't watched yet, ranked by MAL score.
+* **Implementation:** Extract user's top studios from completed list, then fetch all anime by those studios and filter unwatched.
+* **CLI Command:** `studio-recommendations --studio "Shaft"` or `studio-recommendations --auto-detect` (suggest from top 5 studios).
+
+### H. Recommendation Similarity Scoring
+* **Concept:** Show why two shows are linked (i.e., which attributes/relations they share: same franchise, shared tags, recommended together, shared voice actors).
+* **Implementation:** Trace the recommendation path and surface shared attributes.
+* **CLI Output:** `recommendation-detail 30015` could display: "Similar because: Franchise relation (Demon Slayer) + Action genre + Same voice actor (Tanjiro seiyuu)".
+
+### I. Cold-Start Recommendations (New User Handling)
+* **Concept:** For users with very few completed shows, leverage global popularity and genre-based signals instead of relying on sparse recommendation graphs.
+* **Implementation:** Blend user-specific signals with global MAL rankings when a user has <5 completed shows.
+* **Metrics:** Global MAL score, trending status (from MAL statistics), genre popularity within user's preferred genres.
+
+### J. Recommendation Confidence & Uncertainty Quantification
+* **Concept:** Not all recommendations are equally confident. Express recommendation strength as a confidence interval or percentile.
+* **Implementation:** Track recommendation signal redundancy (how many independent sources voted for it) and use that to estimate confidence.
+* **Output:** Show top 10 with confidence bands: `Vinland Saga (89% ± 5%)` vs. `Niche Gem (62% ± 18%)`.
+
+### K. Watchlist Optimization (Smart Ordering)
+* **Concept:** Given the user's planning list, reorder it based on recommendation signals and user preference compatibility.
+* **Implementation:** Fetch the user's "Planning" list, rank by compatibility score, and suggest a watch order.
+* **CLI Command:** `optimize-watchlist --list-status planning` (reorder the planning list by recommendation fit).
+
+### L. Genre Blend Recommendations
+* **Concept:** Recommend shows that blend multiple genres the user enjoys, rather than shows in a single familiar genre.
+* **Implementation:** Identify high-scoring shows that combine 2+ of the user's top genres in novel ways.
+* **CLI Command:** `recommendation --blend-genres` (prioritize cross-genre shows).
+
+### M. Content Warning & Spoiler Flagging
+* **Concept:** Integrate content metadata (trigger warnings, spoiler indicators) to help users make informed choices.
+* **Implementation:** Use MAL's content rating and themes; flag shows with mature/dark themes.
+* **CLI Output:** Include optional flags in recommendation details: `[SPOILER: Ends a major arc]`, `[CONTENT: Gore/Violence]`.
