@@ -19,25 +19,33 @@ import java.util.Optional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class UserListService {
 
     private static final int MAX = 1000;
 
-    @Qualifier("objectMapper")
     private final ObjectMapper objectMapper;
-
     private final RestClient apiKeyClient;
     private final GenericCacheRepository genericCacheRepository;
 
-    @Value("${mal.retry.max-attempts:5}")
-    private int maxAttempts;
+    private final int maxAttempts;
+    private final long initialBackoffMs;
+    private final double backoffMultiplier;
 
-    @Value("${mal.retry.initial-backoff-ms:1000}")
-    private long initialBackoffMs;
-
-    @Value("${mal.retry.backoff-multiplier:2.0}")
-    private double backoffMultiplier;
+    public UserListService(
+            @Qualifier("objectMapper") ObjectMapper objectMapper,
+            RestClient apiKeyClient,
+            GenericCacheRepository genericCacheRepository,
+            @Value("${mal.retry.max-attempts:5}") int maxAttempts,
+            @Value("${mal.retry.initial-backoff-ms:1000}") long initialBackoffMs,
+            @Value("${mal.retry.backoff-multiplier:2.0}") double backoffMultiplier
+    ) {
+        this.objectMapper = objectMapper;
+        this.apiKeyClient = apiKeyClient;
+        this.genericCacheRepository = genericCacheRepository;
+        this.maxAttempts = maxAttempts;
+        this.initialBackoffMs = initialBackoffMs;
+        this.backoffMultiplier = backoffMultiplier;
+    }
 
     public AnimeList getListByUserName(String userName, Status status) throws JsonProcessingException {
         String cacheKey = "userlist:" + userName + ":" + status.getType();
