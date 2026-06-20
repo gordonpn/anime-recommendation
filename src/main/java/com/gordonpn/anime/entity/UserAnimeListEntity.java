@@ -29,4 +29,7 @@ public class UserAnimeListEntity {
 
     @Column(name = "user_score")
     private Integer userScore;
+
+    @Column(name = "updated_at")
+    private java.time.LocalDateTime updatedAt;
 }
