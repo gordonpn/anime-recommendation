@@ -65,3 +65,7 @@
   - **Permanent Errors (404 Not Found):** Wrapped in `MalResourceNotFoundException`. Caught in detail-fetching loops (facade, commands) to log warning/info and skip the item cleanly, allowing execution to continue.
   - **Transient Errors (unexpected HTML/429/5xx/network errors):** Rethrown by the services (`AnimeService`, `UserListService`) and facade layers. The command/facade execution aborts immediately, guaranteeing that recommendations are never built on incomplete datasets.
 
+### DTO/Entity Separation & Package Reorganization
+- **Token Entity & DTO Separation:** `TokenResponse` functions as a pure REST API / external client response DTO (under package `models.dto`) containing Jackson annotations, decoupled from JPA mapping. `TokenEntity` (under package `entity`) is a dedicated database entity mapped to the SQLite `tokens` table. Services perform explicit mapping when loading/saving credentials, preventing API contract changes from corrupting the database schema.
+- **Model Reorganization:** Relocated target models into specialized packages (`models/dto` and `models/exception`) under `models` to separate concerns cleanly, while keeping raw MyAnimeList response mappings at the root of `models`.
+
