@@ -555,6 +555,387 @@ public class GlobalExceptionHandler {
 
 ---
 
+---
+
+## ADDITIONAL ARCHITECTURAL FINDINGS (June 2026)
+
+### 19. Models Package Organization (30+ mixed concerns)
+**File**: `src/main/java/com/gordonpn/anime/models/` (30+ files)
+
+**Problem**: The `models` directory contains 30+ files with mixed concerns:
+- API request/response objects (no DTO separation)
+- Domain models (MAL data structures)
+- Custom exceptions (MalResourceNotFoundException, AuthCodeParsingException)
+- Utility classes (RandomState, PKCEUtil)
+
+**Impact**:
+- No clear separation between API contracts and domain models
+- Difficult to navigate and understand the role of each class
+- Violates single responsibility principle at package level
+- Hard to version API independently from domain
+
+**Suggested refactoring**:
+```
+models/
+├── dto/
+│   ├── request/
+│   │   ├── RecommendationRequest.java
+│   │   └── UserListRequest.java
+│   └── response/
+│       ├── RecommendationResponse.java
+│       ├── UserListResponse.java
+│       └── AuthStatusResponse.java
+├── domain/
+│   ├── AnimeDetails.java
+│   ├── Recommendation.java
+│   └── UserAnimeListEntry.java
+├── mal/
+│   ├── Node.java
+│   ├── Datum.java
+│   ├── AnimeList.java
+│   └── TokenResponse.java (migrate to dto/ or entity/)
+└── exception/
+    ├── MalResourceNotFoundException.java
+    └── AuthCodeParsingException.java
+
+# Move utilities to util/ package:
+util/
+├── RandomState.java
+├── PKCEUtil.java
+├── Browser.java
+└── CallbackHandler.java
+```
+
+---
+
+### 20. Missing HTTP Client Abstraction Layer
+**Files**: `AnimeService.java`, `UserListService.java`, `RecommendationService.java`, `TokenExchangeService.java`
+
+**Problem**: Multiple services directly use injected `RestClient` instances without abstraction. Each service duplicates API call patterns:
+- Error handling differs between services
+- Endpoint construction logic spread across files
+- No centralized MAL API contract enforcement
+
+**Impact**:
+- Hard to change HTTP client implementation (e.g., switch to WebClient)
+- Inconsistent error handling across services
+- API versioning strategy not enforced
+- Testing requires mocking RestClient in each service test
+
+**Suggested refactoring**:
+```java
+// Create MalApiClient abstraction:
+@Service
+public class MalApiClient {
+    private final RestClient apiKeyClient;
+    private final String baseUrl = "https://api.myanimelist.net/v2";
+    
+    public <T> T getAnimeById(int animeId, Class<T> responseType) {
+        return get("/anime/{id}", responseType, animeId);
+    }
+    
+    public <T> List<T> getUserList(String userName, String status, Class<T> responseType) {
+        return getList("/users/{userName}/animelist", responseType, userName);
+    }
+    
+    private <T> T get(String endpoint, Class<T> responseType, Object... pathVars) {
+        try {
+            return apiKeyClient.get()
+                .uri(baseUrl + endpoint, pathVars)
+                .retrieve()
+                .body(responseType);
+        } catch (HttpClientErrorException e) {
+            throw new MalApiException("API call failed", e);
+        }
+    }
+}
+
+// Services become simpler:
+@Service
+public class AnimeService {
+    private final MalApiClient malApiClient;
+    
+    public AnimeDetails getAnimeById(int animeId) {
+        return malApiClient.getAnimeById(animeId, AnimeDetails.class);
+    }
+}
+```
+
+---
+
+### 21. RecommendationFacade Size Growing (396 lines, approaching cognitive load limit)
+**File**: `src/main/java/com/gordonpn/anime/service/recommendation/RecommendationFacade.java`
+
+**Problem**: Facade is now 396 lines (measured June 2026), which exceeds maintainability threshold. Further growth will compound Issue #3.
+
+**Impact**:
+- Difficult to read and understand all responsibilities in one sitting
+- Hard to add new features without breaking existing logic
+- Slower unit test execution (all dependencies must be mocked)
+- Higher risk of regression when modifying ranking/filtering logic
+
+**Suggested refactoring** (extends Issue #3):
+- Extract franchise grouping logic to `FranchiseGroupingService`
+- Move recommendation filtering logic to dedicated `RecommendationFilterService`
+- Move scoring calculation to `RecommendationScoringService`
+- Keep facade as orchestrator, limit to 150 lines maximum
+
+---
+
+### 22. Missing DTO/Request Validation Layer
+**Problem**: No centralized request validation. Commands and controllers accept parameters without bounds checking.
+
+**Examples**:
+- `recommendation --limit 10000` (should cap at 500)
+- No validation for invalid user names (should fail early, not at API call)
+- No validation for year ranges in `--min-year` / `--max-year` filters
+
+**Impact**:
+- Wasted API calls for invalid requests
+- Poor error messages (user gets HTTP 400 instead of validation error)
+- No clear contract for what requests are acceptable
+
+**Suggested refactoring**:
+```java
+@Data
+public class RecommendationRequest {
+    @NotBlank(message = "userName is required")
+    private String userName;
+    
+    @Positive(message = "limit must be positive")
+    @Max(value = 500, message = "limit cannot exceed 500")
+    private int limit = 50;
+    
+    @Min(value = 1917, message = "minYear must be >= 1917")
+    @Max(value = 2100, message = "minYear must be <= 2100")
+    private Integer minYear;
+}
+
+// In controller:
+@PostMapping
+public ResponseEntity<RecommendationResponse> getRecommendations(
+    @Valid @RequestBody RecommendationRequest request) {
+    // request is guaranteed to be valid
+}
+```
+
+---
+
+### 23. No Circuit Breaker Pattern for Resilience
+**Problem**: Application currently retries MAL API calls via `MalRetryInterceptor`, but has no circuit breaker to stop calling a failing API.
+
+**Scenario**: If MAL API is down for 10 minutes, every recommendation request will hit the retry limit (3 × exponential backoff ≈ 4 seconds per request). With no circuit breaker, requests keep failing slowly.
+
+**Impact**:
+- Poor user experience during MAL outages
+- Wasted resources on guaranteed-to-fail API calls
+- No automatic recovery signaling
+
+**Suggested refactoring**:
+```java
+@Configuration
+public class ResilienceConfig {
+    @Bean
+    public CircuitBreaker malApiCircuitBreaker() {
+        CircuitBreakerConfig config = CircuitBreakerConfig.custom()
+            .failureRateThreshold(50.0) // Open after 50% failures
+            .waitDurationInOpenState(Duration.ofSeconds(30))
+            .slowCallRateThreshold(50.0)
+            .slowCallDurationThreshold(Duration.ofSeconds(5))
+            .build();
+        
+        return CircuitBreaker.of("malApiCircuitBreaker", config);
+    }
+}
+
+// Apply to MalApiClient:
+@Service
+public class MalApiClient {
+    private final CircuitBreaker circuitBreaker;
+    
+    public <T> T get(String endpoint, Class<T> responseType) {
+        return Decorators.ofSupplier(() -> restClient.get(...))
+            .withCircuitBreaker(circuitBreaker)
+            .withRetry(retryConfig)
+            .get()
+            .get();
+    }
+}
+```
+
+---
+
+### 24. Test Coverage Gap (16 tests for 3548 LOC)
+**Problem**: Test directory contains only 16 test files, covering ~0.5% of codebase (estimated 3548 LOC).
+
+**Critical gaps**:
+- No tests for `RecommendationFacade` (core logic)
+- No tests for recommendation ranking algorithm
+- No tests for API controllers
+- No integration tests for MAL API client
+- Manual testing likely carries all the risk
+
+**Impact**:
+- High regression risk on refactoring
+- No confidence in ranking behavior changes
+- Difficult to onboard new contributors (unclear expected behavior)
+- Difficult to debug in production
+
+**Suggested refactoring** (multi-phase):
+1. Add unit tests for `RankingService` (scoring logic)
+2. Add unit tests for `FilteringService` (filter logic)
+3. Add integration tests for `RecommendationFacade`
+4. Add API endpoint tests for controllers
+5. Add test fixtures and builders for common test data
+
+**Example test structure**:
+```java
+@SpringBootTest
+class RecommendationFacadeIntegrationTest {
+    @Test
+    void getRecommendations_withValidUser_returnsRankedResults() {
+        // Arrange
+        UserAnimeListTestBuilder userList = UserAnimeListTestBuilder.create()
+            .withCompleted("Steins;Gate", 9.0)
+            .withCompleted("Death Note", 8.5);
+        
+        // Act
+        List<RecommendationDetailedResult> results = 
+            facade.getRecommendations("testUser", 10);
+        
+        // Assert
+        assertThat(results).isNotEmpty();
+        assertThat(results.get(0).getScore()).isGreater(results.get(1).getScore());
+    }
+}
+```
+
+---
+
+### 25. Configuration Management Fragmentation
+**Problem**: Configuration spread across multiple locations:
+- `application.properties` (Spring config)
+- `AnimeClientConfig.java` (RestClient bean config)
+- `RankingService.java` (@Value annotations)
+- `MalRetryInterceptor.java` (retry config hardcoded)
+- `BackgroundFetchService.java` (ONE_HOUR_IN_MILLIS constant)
+- `ApplicationConstants` (suggested in Issue #15)
+
+**Impact**:
+- Hard to understand all configuration options
+- No centralized config schema
+- Difficult to manage environment-specific configs
+- Risk of config defaults being inconsistent
+
+**Suggested refactoring**:
+```yaml
+# application.properties
+app:
+  mode: cli
+  api:
+    base-url: /api/v1
+  constants:
+    max-list-size: 1000
+    recommendation-cache-size: 100
+
+mal:
+  api:
+    base-url: https://api.myanimelist.net/v2
+    timeout-ms: 10000
+  retry:
+    max-attempts: 3
+    initial-backoff-ms: 500
+    backoff-multiplier: 2.0
+  circuit-breaker:
+    failure-rate-threshold: 50
+    wait-duration-seconds: 30
+  cache:
+    anime-ttl-days: 30
+    user-list-ttl-days: 1
+    seasonal-ttl-days: 1
+
+recommendation:
+  ranking:
+    weights:
+      occurrence: 1.0
+      rating: 0.5
+      popularity: 0.3
+  temporal:
+    completion-decay-months: 12
+    release-freshness-boost: 0.5
+```
+
+Then use `@ConfigurationProperties` to load:
+```java
+@Configuration
+@ConfigurationProperties(prefix = "app")
+@Data
+public class ApplicationConfig {
+    private String mode;
+    private Api api;
+    private Constants constants;
+}
+
+@Configuration
+@ConfigurationProperties(prefix = "mal")
+@Data
+public class MalConfig {
+    private Api api;
+    private Retry retry;
+    private CircuitBreaker circuitBreaker;
+    private Cache cache;
+}
+```
+
+---
+
+### 26. No Observability Layer (Metrics, Distributed Tracing)
+**Problem**: Application lacks observability for production monitoring.
+
+**Missing**:
+- Metrics collection (API latency, error rates, cache hit/miss)
+- Structured logging (no correlation IDs across logs)
+- Distributed tracing support
+- Health check metrics endpoint
+
+**Impact**:
+- Cannot diagnose performance issues in production
+- Hard to detect when MAL API is slow
+- Difficult to debug end-to-end request flow
+- No alerting capability for degradation
+
+**Suggested refactoring**:
+```java
+// Add Micrometer metrics:
+@Service
+public class RecommendationFacade {
+    private final MeterRegistry meterRegistry;
+    
+    public List<RecommendationDetailedResult> getRecommendations(String userName, int limit) {
+        Timer.Sample sample = Timer.start(meterRegistry);
+        try {
+            List<RecommendationDetailedResult> results = ...; // existing logic
+            meterRegistry.counter("recommendations.generated", "user", userName).increment();
+            return results;
+        } catch (Exception e) {
+            meterRegistry.counter("recommendations.error", "user", userName).increment();
+            throw e;
+        } finally {
+            sample.stop(Timer.builder("recommendations.latency")
+                .description("Time to generate recommendations")
+                .publishPercentiles(0.5, 0.95, 0.99)
+                .register(meterRegistry));
+        }
+    }
+}
+
+// Add structured logging:
+log.info("Recommendations generated", 
+    Map.of("userName", userName, "count", results.size(), "latencyMs", elapsed));
+```
+
+---
+
 ## RECOMMENDED REFACTORING ORDER
 
 Priority should be **High** issues first (blocks architecture compliance), then **Medium** (improves maintainability), then **Low** (technical debt).
@@ -567,38 +948,51 @@ Priority should be **High** issues first (blocks architecture compliance), then 
 ### **Phase 2: DTO/Entity Separation** (1-2 days)
 - Issue #4: Separate TokenResponse into DTO + Entity
 - Issue #7: Create `/dto/` package with response models
+- Issue #19: Reorganize models package
 - Impact: Clean architectural separation, better API versioning
 
-### **Phase 3: REST API Completion** (2-3 days)
+### **Phase 3: HTTP Client Abstraction** (2-3 days)
+- Issue #20: Create MalApiClient wrapper service
+- Impact: Easier to test, consistent API patterns, easier to change implementation
+
+### **Phase 4: REST API Completion** (2-3 days)
 - Issue #5: Create AuthController, UserListController, RecommendationController
 - Issue #18: Add correlation ID logging
-- Issue #17: Add integration tests
+- Issue #24: Add API integration tests
 - Impact: Achieves Phase B of ARCHITECTURE.md
 
-### **Phase 4: Decompose RecommendationFacade** (3-5 days)
+### **Phase 5: Decompose RecommendationFacade & Add Validation** (4-5 days)
 - Issue #3: Extract GraphBuilder, ComponentAnalyzer, FranchiseRepresentativeSelector
+- Issue #21: Extract scoring and filtering services
+- Issue #22: Add DTO validation layer
 - Issue #8: Break long methods
 - Impact: Achieves Phase C, improves testability
 
-### **Phase 5: Centralize Cache Logic** (2-3 days)
+### **Phase 6: Centralize Cache Logic & Configuration** (2-3 days)
 - Issue #2: Create CacheService with generic getOrFetch()
-- Impact: Reduces duplication, consistent TTL strategy
+- Issue #25: Consolidate configuration management
+- Impact: Reduces duplication, consistent TTL strategy, centralized config
 
-### **Phase 6: Configuration & Validation** (2-3 days)
+### **Phase 7: Resilience & Observability** (3-4 days)
+- Issue #23: Add circuit breaker pattern
+- Issue #26: Add metrics and structured logging
 - Issue #11: Validate RankingService weights
+- Impact: Production-ready reliability and debugging
+
+### **Phase 8: Configuration & Test Coverage** (3-4 days)
 - Issue #15: Extract magic numbers to ApplicationConstants
 - Issue #10: Add service input validation
-- Issue #9: Create MalApiClient wrapper
+- Issue #24: Improve test coverage (unit + integration)
 - Impact: Improves reliability and maintainability
 
-### **Phase 7: Code Quality & Structure** (2-3 days)
+### **Phase 9: Code Quality & Structure** (2-3 days)
 - Issue #6: Consolidate command/service separation
-- Issue #13: Reorganize package structure
+- Issue #13: Reorganize package structure (if needed after Phase 2)
 - Issue #14: Extract TableFormatter service
 - Issue #16: Document API versioning strategy
 - Impact: Improves navigability and consistency
 
-**Total effort**: ~15-20 days for full architectural compliance + clean code standards
+**Total effort**: ~25-30 days for full architectural compliance + production readiness
 
 ---
 
