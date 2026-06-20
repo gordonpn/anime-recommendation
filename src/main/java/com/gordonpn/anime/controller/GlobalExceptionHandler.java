@@ -1,6 +1,8 @@
 package com.gordonpn.anime.controller;
 
+import com.gordonpn.anime.models.AnimeDataProcessingException;
 import com.gordonpn.anime.models.AuthCodeParsingException;
+import com.gordonpn.anime.models.MalResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +16,22 @@ import java.time.Instant;
 
 @ControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+
+    @ExceptionHandler(AnimeDataProcessingException.class)
+    public ResponseEntity<Object> handleAnimeDataProcessingException(AnimeDataProcessingException ex, WebRequest request) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+        problemDetail.setTitle("Data Processing Error");
+        problemDetail.setProperty("timestamp", Instant.now());
+        return createResponseEntity(problemDetail, null, HttpStatus.INTERNAL_SERVER_ERROR, request);
+    }
+
+    @ExceptionHandler(MalResourceNotFoundException.class)
+    public ResponseEntity<Object> handleMalResourceNotFoundException(MalResourceNotFoundException ex, WebRequest request) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problemDetail.setTitle("Resource Not Found");
+        problemDetail.setProperty("timestamp", Instant.now());
+        return createResponseEntity(problemDetail, null, HttpStatus.NOT_FOUND, request);
+    }
 
     @ExceptionHandler(AuthCodeParsingException.class)
     public ResponseEntity<Object> handleAuthCodeParsingException(AuthCodeParsingException ex, WebRequest request) {
