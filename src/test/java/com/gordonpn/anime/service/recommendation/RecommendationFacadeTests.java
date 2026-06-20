@@ -271,4 +271,41 @@ public class RecommendationFacadeTests {
         assertEquals(1, results.size());
         assertEquals("Good Retro Show", results.get(0).getTitle());
     }
+
+    @Test
+    public void testTransientErrorAbortsExecution() throws Exception {
+        UserAnimeListEntity completedEntity = new UserAnimeListEntity();
+        completedEntity.setAnimeId(101);
+        completedEntity.setStatus(ListStatusType.COMPLETED);
+
+        when(userAnimeListRepository.findByStatus(ListStatusType.COMPLETED))
+                .thenReturn(List.of(completedEntity));
+        when(userAnimeListRepository.findByStatus(ListStatusType.DROPPED))
+                .thenReturn(Collections.emptyList());
+
+        // Mock details lookup to throw transient RuntimeException
+        when(animeService.getAnimeById(101)).thenThrow(new RuntimeException("Transient connection issue"));
+
+        org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class, () -> {
+            recommendationFacade.getRecommendations("@me", 10);
+        });
+    }
+
+    @Test
+    public void testMalResourceNotFoundExceptionIsSkipped() throws Exception {
+        UserAnimeListEntity completedEntity = new UserAnimeListEntity();
+        completedEntity.setAnimeId(101);
+        completedEntity.setStatus(ListStatusType.COMPLETED);
+
+        when(userAnimeListRepository.findByStatus(ListStatusType.COMPLETED))
+                .thenReturn(List.of(completedEntity));
+        when(userAnimeListRepository.findByStatus(ListStatusType.DROPPED))
+                .thenReturn(Collections.emptyList());
+
+        when(animeService.getAnimeById(101)).thenThrow(new MalResourceNotFoundException("Anime not found"));
+
+        List<RecommendationDetailedResult> results = recommendationFacade.getRecommendations("@me", 10);
+        assertNotNull(results);
+        assertEquals(0, results.size());
+    }
 }
