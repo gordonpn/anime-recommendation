@@ -53,7 +53,7 @@ public class AnimeService {
                     .getBody();
 
             if (body == null || body.trim().startsWith("<")) {
-                throw new MalResourceNotFoundException("MAL API returned an HTML page (likely a 404 or rate-limit) instead of a JSON payload.");
+                throw new RuntimeException("MAL API returned an HTML page (likely a rate-limit or captcha challenge) instead of a JSON payload.");
             }
 
             AnimeDetails animeDetails = objectMapper.readValue(body, AnimeDetails.class);
@@ -68,6 +68,9 @@ public class AnimeService {
             animeCacheRepository.save(cacheEntry);
 
             return animeDetails;
+        } catch (org.springframework.web.client.HttpClientErrorException.NotFound e) {
+            log.error("Anime ID {} not found on MyAnimeList (404 Not Found): {}", animeId, e.getMessage());
+            throw new MalResourceNotFoundException("Anime ID " + animeId + " not found on MyAnimeList", e);
         } catch (Exception e) {
             log.error("Failed to fetch or parse anime ID {} from MAL: {}", animeId, e.getMessage());
             if (cachedOpt.isPresent()) {
@@ -113,7 +116,7 @@ public class AnimeService {
                     .getBody();
 
             if (body == null || body.trim().startsWith("<")) {
-                throw new MalResourceNotFoundException("MAL API returned an HTML page (likely a 404 or rate-limit) instead of a JSON payload.");
+                throw new RuntimeException("MAL API returned an HTML page (likely a rate-limit or captcha challenge) instead of a JSON payload.");
             }
 
             SeasonalAnime seasonalAnime = objectMapper.readValue(body, SeasonalAnime.class);
@@ -127,6 +130,9 @@ public class AnimeService {
             genericCacheRepository.save(cacheEntry);
 
             return seasonalAnime;
+        } catch (org.springframework.web.client.HttpClientErrorException.NotFound e) {
+            log.error("Seasonal anime key {} not found on MyAnimeList (404 Not Found): {}", cacheKey, e.getMessage());
+            throw new MalResourceNotFoundException("Seasonal anime key " + cacheKey + " not found on MyAnimeList", e);
         } catch (Exception e) {
             log.error("Failed to fetch or parse seasonal anime key {} from MAL: {}", cacheKey, e.getMessage());
             if (cachedOpt.isPresent()) {
