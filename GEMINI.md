@@ -33,10 +33,16 @@
 ### Multi-Signal Recommendation Ranking
 - **User Score Weighted Scaling:** To allow the user's taste to guide the ranking, the recommendation occurrence count is scaled by `avgCompletedGroupRating / 7.0` (using `1.0` if the completed show was unrated).
 
-### Temporal Recommendation Decay
+### Temporal Recommendation Decay (Taste Decay)
 - **Concept:** Recent shows in the user's completed list should influence recommendations more heavily than older shows, since taste evolves over time.
 - **Decay Formula:** Assign decay weights based on completion date: $w = 2.0^{-\frac{t}{\text{decayMonths}}}$, where $t$ is the elapsed completion age in decimal months ($t = \text{days} / 30.4375$). The `decayMonths` represents the half-life parameter.
 - **CLI/Parameter Integration:** Exposed as an optional `--decay-months` parameter in the `recommendation` command, prompting interactively if not provided as a direct flag.
+
+### Freshness Boost & Hybrid Temporal Weighting
+- **Freshness Boost Formula:** Boost candidate recommendations based on their release date: $b = e^{-\mu \times \text{yearsSinceRelease}}$, where $\text{yearsSinceRelease} = \max(0.0, \text{currentYear} - \text{startYear})$, and $\mu$ is the `freshnessBoost` parameter (decay rate).
+- **Hybrid Integration:** When both parameters are enabled, they are combined as: $\text{Final Score} = \text{Base Relevance Score} \times \text{Taste Decay} \times \text{Freshness Boost}$. Completion decay is applied at the occurrence signal level, and freshness boost is applied at the final candidate score level.
+- **CLI/Parameter Integration:** Exposed as an optional `--freshness-boost` parameter in the `recommendation` command, prompting interactively if not provided as a direct flag.
+
 
 ### API Request Retry Interceptor with Exponential Backoff
 - **Transient vs. Permanent Errors:**
