@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
+import org.jline.reader.LineReader;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +40,8 @@ public class RecommendationCommandsTests {
                 new ObjectMapper(), // Use real objectMapper for formatting output
                 recommendationService,
                 animeService,
-                recommendationFacade
+                recommendationFacade,
+                null
         );
     }
 
@@ -107,5 +110,39 @@ public class RecommendationCommandsTests {
         assertNotNull(output);
         assertTrue(output.contains("Attack on Titan Season 4 Part 2"));
         assertTrue(output.contains("8.90"));
+    }
+
+    @Mock
+    private ObjectProvider<LineReader> lineReaderProviderMock;
+    @Mock
+    private LineReader lineReaderMock;
+
+    @Test
+    public void testRecommendationInteractivePrompts() throws Exception {
+        recommendationCommands = new RecommendationCommands(
+                new ObjectMapper(),
+                recommendationService,
+                animeService,
+                recommendationFacade,
+                lineReaderProviderMock
+        );
+
+        when(lineReaderProviderMock.getIfAvailable()).thenReturn(lineReaderMock);
+        // Returns empty username (defaults to @me), "y" for JSON (maps to true), "5" for limit
+        when(lineReaderMock.readLine(anyString()))
+                .thenReturn("")
+                .thenReturn("y")
+                .thenReturn("5");
+
+        List<RecommendationDetailedResult> recs = List.of(
+                RecommendationDetailedResult.builder().id(12).title("Test").score(10.0).build()
+        );
+        when(recommendationFacade.getRecommendations("@me", 5)).thenReturn(recs);
+
+        String result = recommendationCommands.recommendation(null, null, null);
+
+        assertNotNull(result);
+        assertTrue(result.contains("\"id\":12"));
+        assertTrue(result.contains("\"title\":\"Test\""));
     }
 }

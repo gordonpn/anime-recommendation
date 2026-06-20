@@ -42,3 +42,9 @@
   - `mal.retry.max-attempts` (default: 3)
   - `mal.retry.initial-backoff-ms` (default: 500ms)
   - `mal.retry.backoff-multiplier` (default: 2.0)
+
+### CLI Interactive Prompting
+- **Behavior:** The `recommendation`, `seasonal`, and `suggestions` commands will prompt the user interactively if parameters are not provided as flags in the shell.
+- **Fallback:** In interactive mode, if the user leaves the input blank and hits `Enter`, the default value is automatically applied.
+- **Compatibility:** Passing command-line options directly (e.g., `recommendation --userName test`) skips prompting, which preserves non-interactive usage and compatibility for scripts and unit tests.
+- **Mechanism:** Uses a lazily-injected JLine `LineReader` via `ObjectProvider<LineReader>` to safely query user input if Spring Shell is running.

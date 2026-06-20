@@ -2,6 +2,8 @@ package com.gordonpn.anime.commands;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.jline.reader.LineReader;
+import org.springframework.beans.factory.ObjectProvider;
 import com.gordonpn.anime.models.AnimeDetails;
 import com.gordonpn.anime.models.AnimeList;
 import com.gordonpn.anime.models.Node;
@@ -45,21 +47,26 @@ public class RecommendationCommands {
     private final RecommendationService recommendationService;
     private final AnimeService animeService;
     private final RecommendationFacade recommendationFacade;
+    private final ObjectProvider<LineReader> lineReaderProvider;
 
     @ShellMethod(key = "recommendation", value = "Generate personalized anime recommendations based on completed shows. Groups series, applies user rating weights, and averages candidate franchise scores.")
     public String recommendation(
-            @ShellOption(defaultValue = "@me", help = "The MyAnimeList username, or '@me' to use the local SQLite database") String userName,
-            @ShellOption(defaultValue = "false", help = "Output the recommendations in JSON format") boolean json,
-            @ShellOption(defaultValue = "10", help = "Maximum number of recommendations to return") int limit) throws JsonProcessingException {
+            @ShellOption(defaultValue = ShellOption.NULL, help = "The MyAnimeList username, or '@me' to use the local SQLite database") String userName,
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Output the recommendations in JSON format") Boolean json,
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum number of recommendations to return") Integer limit) throws JsonProcessingException {
         
-        List<RecommendationDetailedResult> recommendations = recommendationFacade.getRecommendations(userName, limit);
+        String finalUserName = userName != null ? userName : promptString("Enter MyAnimeList username", "@me");
+        boolean finalJson = json != null ? json : promptBoolean("Output in JSON format?", false);
+        int finalLimit = limit != null ? limit : promptInt("Enter maximum number of recommendations to return", 10);
+
+        List<RecommendationDetailedResult> recommendations = recommendationFacade.getRecommendations(finalUserName, finalLimit);
         
-        if (json) {
+        if (finalJson) {
             return objectMapper.writeValueAsString(recommendations);
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("\n=== Recommendations for %s ===\n", userName));
+        sb.append(String.format("\n=== Recommendations for %s ===\n", finalUserName));
         sb.append(String.format("%-4s | %-40s | %-6s | %-6s | %-6s | %-6s | %s\n", 
                 "Rank", "Title", "Score", "Occur", "Rating", "Pop", "Explanation"));
         sb.append("-".repeat(110)).append("\n");
@@ -84,11 +91,16 @@ public class RecommendationCommands {
 
     @ShellMethod(key = "seasonal", value = "Recommend top-rated seasonal anime from past years, grouped by franchise component.")
     public String seasonal(
-            @ShellOption(defaultValue = "5", help = "Number of past years of seasonal anime to search") String numYears,
-            @ShellOption(defaultValue = "false", help = "Output the seasonal rankings in JSON format") boolean json,
-            @ShellOption(defaultValue = "15", help = "Maximum number of results to display") int limit) throws JsonProcessingException {
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Number of past years of seasonal anime to search") String numYears,
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Output the seasonal rankings in JSON format") Boolean json,
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum number of results to display") Integer limit) throws JsonProcessingException {
+        
+        String finalNumYears = numYears != null ? numYears : promptString("Enter number of past years of seasonal anime to search", "5");
+        boolean finalJson = json != null ? json : promptBoolean("Output the seasonal rankings in JSON format?", false);
+        int finalLimit = limit != null ? limit : promptInt("Enter maximum number of results to display", 15);
+
         var seasons = List.of("winter", "spring", "summer", "fall");
-        var years = Integer.parseInt(numYears);
+        var years = Integer.parseInt(finalNumYears);
 
         var allData = new ArrayList<Datum>();
         var currentYear = Year.now().getValue();
@@ -110,7 +122,7 @@ public class RecommendationCommands {
                     Double m2 = d2.getNode().getMean();
                     return Double.compare(m2 != null ? m2 : 0.0, m1 != null ? m1 : 0.0);
                 })
-                .limit(Math.max(100, limit * 3))
+                .limit(Math.max(100, finalLimit * 3))
                 .toList();
 
         // 2. Fetch full details (with related_anime) and build relationship graph
@@ -243,17 +255,17 @@ public class RecommendationCommands {
         );
         sortedResult.addAll(consolidatedResults);
 
-        if (json) {
-            return objectMapper.writeValueAsString(sortedResult.stream().limit(limit).toList());
+        if (finalJson) {
+            return objectMapper.writeValueAsString(sortedResult.stream().limit(finalLimit).toList());
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("\n=== Top Seasonal Anime (Past %s Years) ===\n", numYears));
+        sb.append(String.format("\n=== Top Seasonal Anime (Past %s Years) ===\n", finalNumYears));
         sb.append(String.format("%-4s | %-50s | %-6s\n", "Rank", "Title", "Rating"));
         sb.append("-".repeat(66)).append("\n");
         int rank = 1;
         for (SeasonalAnimeResult res : sortedResult) {
-            if (rank > limit) {
+            if (rank > finalLimit) {
                 break;
             }
             String title = res.getTitle() != null ? res.getTitle() : "Unknown";
@@ -272,13 +284,17 @@ public class RecommendationCommands {
 
     @ShellMethod(key = "suggestions", value = "Retrieve personalized anime suggestions directly from MyAnimeList's native recommendations engine.")
     public String suggestions(
-            @ShellOption(defaultValue = "false", help = "Output the suggestions in JSON format") boolean json,
-            @ShellOption(defaultValue = "10", help = "Maximum number of suggestions to return") int limit) throws JsonProcessingException {
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Output the suggestions in JSON format") Boolean json,
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum number of suggestions to return") Integer limit) throws JsonProcessingException {
+        
+        boolean finalJson = json != null ? json : promptBoolean("Output the suggestions in JSON format?", false);
+        int finalLimit = limit != null ? limit : promptInt("Enter maximum number of suggestions to return", 10);
+
         AnimeList suggestionsList = recommendationService.getSuggestions();
         List<Datum> data = suggestionsList != null ? suggestionsList.getData() : Collections.emptyList();
 
-        if (json) {
-            return objectMapper.writeValueAsString(data.stream().limit(limit).toList());
+        if (finalJson) {
+            return objectMapper.writeValueAsString(data.stream().limit(finalLimit).toList());
         }
 
         StringBuilder sb = new StringBuilder();
@@ -286,7 +302,7 @@ public class RecommendationCommands {
         sb.append(String.format("%-4s | %-10s | %s\n", "Rank", "ID", "Title"));
         sb.append("-".repeat(60)).append("\n");
 
-        int count = Math.min(data.size(), limit);
+        int count = Math.min(data.size(), finalLimit);
         for (int i = 0; i < count; i++) {
             Datum d = data.get(i);
             Node node = d.getNode();
@@ -299,5 +315,41 @@ public class RecommendationCommands {
         }
         sb.append("==================================================\n");
         return sb.toString();
+    }
+
+    private String promptString(String promptText, String defaultValue) {
+        if (lineReaderProvider == null) {
+            return defaultValue;
+        }
+        LineReader lineReader = lineReaderProvider.getIfAvailable();
+        if (lineReader == null) {
+            return defaultValue;
+        }
+        try {
+            String line = lineReader.readLine(promptText + " (default: " + defaultValue + "): ");
+            if (line == null || line.trim().isEmpty()) {
+                return defaultValue;
+            }
+            return line.trim();
+        } catch (Exception e) {
+            log.debug("Failed to read interactive input, using default", e);
+            return defaultValue;
+        }
+    }
+
+    private boolean promptBoolean(String promptText, boolean defaultValue) {
+        String defaultStr = defaultValue ? "y" : "n";
+        String response = promptString(promptText + " (y/n)", defaultStr);
+        return response.equalsIgnoreCase("y") || response.equalsIgnoreCase("yes") || response.equalsIgnoreCase("true");
+    }
+
+    private int promptInt(String promptText, int defaultValue) {
+        String response = promptString(promptText, String.valueOf(defaultValue));
+        try {
+            return Integer.parseInt(response);
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid number format. Using default: " + defaultValue);
+            return defaultValue;
+        }
     }
 }
