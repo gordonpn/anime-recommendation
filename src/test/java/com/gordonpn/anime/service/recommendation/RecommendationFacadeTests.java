@@ -20,6 +20,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
@@ -307,5 +308,92 @@ public class RecommendationFacadeTests {
         List<RecommendationDetailedResult> results = recommendationFacade.getRecommendations("@me", 10);
         assertNotNull(results);
         assertEquals(0, results.size());
+    }
+
+    @Test
+    public void testTemporalDecayWeighting() throws Exception {
+        // Setup two completed shows: 101 (completed now) and 102 (completed 365 days / ~12 months ago)
+        UserAnimeListEntity c1 = new UserAnimeListEntity();
+        c1.setAnimeId(101);
+        c1.setStatus(ListStatusType.COMPLETED);
+        c1.setUserScore(7);
+        c1.setUpdatedAt(java.time.LocalDateTime.now());
+
+        UserAnimeListEntity c2 = new UserAnimeListEntity();
+        c2.setAnimeId(102);
+        c2.setStatus(ListStatusType.COMPLETED);
+        c2.setUserScore(7);
+        c2.setUpdatedAt(java.time.LocalDateTime.now().minusDays(365));
+
+        when(userAnimeListRepository.findByStatus(ListStatusType.COMPLETED))
+                .thenReturn(List.of(c1, c2));
+        when(userAnimeListRepository.findByStatus(ListStatusType.DROPPED))
+                .thenReturn(Collections.emptyList());
+
+        // Completed Show 101 details (recommends candidate 201)
+        AnimeDetails details1 = new AnimeDetails();
+        details1.setId(101);
+        details1.setTitle("Recent Show");
+        
+        Recommendation rec1 = new Recommendation();
+        rec1.setNumRecommendations(2);
+        Node recNode1 = new Node();
+        recNode1.setId(201);
+        recNode1.setTitle("Recommended Show 1");
+        rec1.setNode(recNode1);
+        details1.setRecommendations(List.of(rec1));
+
+        // Completed Show 102 details (recommends candidate 202)
+        AnimeDetails details2 = new AnimeDetails();
+        details2.setId(102);
+        details2.setTitle("Old Show");
+        
+        Recommendation rec2 = new Recommendation();
+        rec2.setNumRecommendations(2);
+        Node recNode2 = new Node();
+        recNode2.setId(202);
+        recNode2.setTitle("Recommended Show 2");
+        rec2.setNode(recNode2);
+        details2.setRecommendations(List.of(rec2));
+
+        when(animeService.getAnimeById(101)).thenReturn(details1);
+        when(animeService.getAnimeById(102)).thenReturn(details2);
+
+        // Mock filtering
+        when(filteringService.shouldInclude(eq(201), anySet(), anySet())).thenReturn(true);
+        when(filteringService.shouldInclude(eq(202), anySet(), anySet())).thenReturn(true);
+
+        // Mock candidate details lookup
+        AnimeDetails recDetails1 = new AnimeDetails();
+        recDetails1.setId(201);
+        recDetails1.setTitle("Recommended Show 1");
+        recDetails1.setMean(8.0);
+        recDetails1.setPopularity(100);
+
+        AnimeDetails recDetails2 = new AnimeDetails();
+        recDetails2.setId(202);
+        recDetails2.setTitle("Recommended Show 2");
+        recDetails2.setMean(8.0);
+        recDetails2.setPopularity(100);
+
+        when(animeService.getAnimeById(201)).thenReturn(recDetails1);
+        when(animeService.getAnimeById(202)).thenReturn(recDetails2);
+
+        // Capture occurrence counts passed to rankingService
+        // Show 1 (decay weight ~ 1.0) -> occurrence ~ 2.0
+        // Show 2 (decay weight ~ 0.5) -> occurrence ~ 1.0
+        // Let's stub rankingService to return occurrence as score
+        when(rankingService.calculateScore(anyDouble(), any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(explanationService.generateExplanation(anyDouble(), anyList())).thenReturn("Explained!");
+
+        // Execute with decayMonths = 12
+        List<RecommendationDetailedResult> results = recommendationFacade.getRecommendations("@me", 10, null, null, 12);
+
+        assertNotNull(results);
+        assertEquals(2, results.size());
+        assertEquals("Recommended Show 1", results.get(0).getTitle());
+        assertTrue(results.get(0).getScore() > 1.8 && results.get(0).getScore() <= 2.0); // score should be ~2.0
+        assertEquals("Recommended Show 2", results.get(1).getTitle());
+        assertTrue(results.get(1).getScore() > 0.8 && results.get(1).getScore() < 1.2); // score should be ~1.0
     }
 }
