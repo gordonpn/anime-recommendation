@@ -30,14 +30,18 @@ public class RecommendationFacade {
     private final ExplanationService explanationService;
 
     public List<RecommendationDetailedResult> getRecommendations(String userName, int limit) throws JsonProcessingException {
-        return getRecommendations(userName, limit, null, null, null);
+        return getRecommendations(userName, limit, null, null, null, null);
     }
 
     public List<RecommendationDetailedResult> getRecommendations(String userName, int limit, Integer minYear, Integer maxYear) throws JsonProcessingException {
-        return getRecommendations(userName, limit, minYear, maxYear, null);
+        return getRecommendations(userName, limit, minYear, maxYear, null, null);
     }
 
     public List<RecommendationDetailedResult> getRecommendations(String userName, int limit, Integer minYear, Integer maxYear, Integer decayMonths) throws JsonProcessingException {
+        return getRecommendations(userName, limit, minYear, maxYear, decayMonths, null);
+    }
+
+    public List<RecommendationDetailedResult> getRecommendations(String userName, int limit, Integer minYear, Integer maxYear, Integer decayMonths, Double freshnessBoost) throws JsonProcessingException {
         List<Integer> completedIds = new ArrayList<>();
         Map<Integer, String> completedIdToTitleMap = new HashMap<>();
         Map<Integer, Integer> completedIdToUserScoreMap = new HashMap<>();
@@ -293,6 +297,14 @@ public class RecommendationFacade {
                 Double overallRating = calculateOverallFranchiseRating(details);
                 
                 double score = rankingService.calculateScore(occurrence, overallRating, details.getPopularity());
+                if (freshnessBoost != null && freshnessBoost > 0) {
+                    Integer startYear = details.getStartYear();
+                    if (startYear != null) {
+                        double yearsSinceRelease = Math.max(0.0, java.time.Year.now().getValue() - startYear);
+                        double boostFactor = Math.exp(-freshnessBoost * yearsSinceRelease);
+                        score = score * boostFactor;
+                    }
+                }
                 String explanation = explanationService.generateExplanation(occurrence, recommendationSourcesMap.get(candidateId));
 
                 detailedResults.add(RecommendationDetailedResult.builder()
