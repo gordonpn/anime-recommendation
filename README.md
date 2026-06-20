@@ -1,6 +1,6 @@
 # Anime Recommendation
 
-Anime recommendation backend built with **Java + Spring Boot**, currently centered on a **CLI workflow** and evolving into a **hybrid CLI + HTTP API** service.
+Anime recommendation CLI built with **Java + Spring Boot + Spring Shell**.
 
 The project integrates with **MyAnimeList (MAL)** for authentication and data retrieval, persists local state in **SQLite**, and uses **Flyway** for schema migrations.
 
@@ -9,7 +9,6 @@ The project integrates with **MyAnimeList (MAL)** for authentication and data re
 - Java 25 (toolchain)
 - Spring Boot 3.x
 - Spring Shell (CLI)
-- Spring Web (HTTP API support)
 - Spring Data JPA + SQLite
 - Flyway migrations
 - Lombok
@@ -29,12 +28,11 @@ The project integrates with **MyAnimeList (MAL)** for authentication and data re
 
 ## Target Direction
 
-- Keep CLI commands working.
-- Add REST endpoints over the same service layer (no duplicated business logic).
-- Support runtime modes: `cli`, `api`, `both`.
+- Keep CLI commands working and expanding.
 - Incrementally refactor recommendation logic into focused services (ranking/filtering/explanations).
+- Improve test coverage and code organization.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the detailed target architecture and migration phases.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the detailed target architecture and refactoring roadmap.
 
 ## Prerequisites
 
@@ -75,15 +73,6 @@ Dev run:
 - `suggestions` - MAL suggestions call.
 - `flyway-info` / `flyway-repair` - migration maintenance commands.
 
-## Planned API Endpoints (hybrid mode)
-
-- `GET /api/v1/health`
-- `GET /api/v1/auth/status`
-- `POST /api/v1/auth/refresh`
-- `GET /api/v1/users/{userName}/list?status=completed`
-- `GET /api/v1/recommendations/{userName}`
-- `GET /api/v1/recommendations/seasonal?years=5`
-
 ## Testing
 
 ```sh
@@ -92,5 +81,5 @@ Dev run:
 
 ## Project Status
 
-This is an active refactor/migration toward a hybrid interface model.
+This is an active refactoring focused on the CLI interface and service layer improvements.
 Contributions should follow the Java-first architecture in [ARCHITECTURE.md](ARCHITECTURE.md).

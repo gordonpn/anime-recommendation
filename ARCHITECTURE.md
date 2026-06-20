@@ -1,15 +1,14 @@
-# Architecture (Java Spring Hybrid CLI + API)
+# Architecture (Java Spring CLI)
 
 This document defines the target architecture for this repository.
-It replaces the previous Python/FastAPI plan.
+The application is focused on a **CLI-first** experience using Spring Shell.
 
 ## 1) Goals
 
 - Stay in the **Java + Spring** ecosystem.
-- Keep the existing **CLI workflows** working.
-- Add a first-class **HTTP API** on top of the same domain services.
-- Avoid rewrites: migrate incrementally from current code.
+- Keep CLI workflows as the primary interface.
 - Keep recommendation logic explicit and easy to tune.
+- Avoid rewrites: migrate incrementally from current code.
 
 ## 2) Current Baseline (what already exists)
 
@@ -19,33 +18,12 @@ It replaces the previous Python/FastAPI plan.
 - Scheduled list synchronization.
 - Recommendation logic based on MAL recommendation aggregation.
 
-## 3) Target Runtime Model
+## 3) Target Logical Architecture
 
-The application supports three runtime modes:
-
-1. `cli` (default during local usage)
-   - Spring Shell enabled.
-   - HTTP endpoints optional.
-
-2. `api`
-   - Spring Shell disabled.
-   - HTTP API only (for integration/automation).
-
-3. `both`
-   - Shell and HTTP endpoints active.
-   - Useful for development and migration.
-
-Suggested config flag:
-
-- `app.mode=cli|api|both`
-
-## 4) Target Logical Architecture
-
-## 4.1 Layers
+## 3.1 Layers
 
 1. **Interface layer**
    - CLI commands (`commands/`)
-   - REST controllers (`controller/`)
 
 2. **Application layer**
    - Orchestration services (`service/`)
@@ -53,25 +31,24 @@ Suggested config flag:
 
 3. **Domain layer**
    - Recommendation ranking + filtering logic
-   - DTOs and domain models
+   - Domain models
 
 4. **Infrastructure layer**
    - MAL API clients (`RestClient` based)
    - Persistence (JPA repositories, SQLite)
    - Scheduling and background jobs
 
-## 4.2 Design rule
+## 3.2 Design rule
 
-Both CLI and API call the same service methods.
-No business logic lives directly in command/controller classes.
+No business logic lives directly in command classes.
+Services handle all domain logic and are independently testable.
 
-## 5) Package Direction (target)
+## 4) Package Direction (target)
 
 ```text
 com.gordonpn.anime
 ├── commands/                  # Spring Shell entry points
-├── controller/                # REST controllers
-├── service/                   # Existing + orchestration services
+├── service/                   # Orchestration services
 │   ├── recommendation/
 │   │   ├── RecommendationFacade
 │   │   ├── RankingService
@@ -80,63 +57,19 @@ com.gordonpn.anime
 │   ├── auth/
 │   ├── sync/
 │   └── list/
-├── client/                    # MAL and future external clients
+├── client/                    # MAL and external API clients
 ├── repository/                # JPA repositories
 ├── entity/                    # JPA entities
-├── models/                    # Existing API/domain models (gradual cleanup)
-├── dto/                       # Request/response DTOs for HTTP API
+├── models/                    # Domain models
 ├── config/
 └── handler/
 ```
 
 Notes:
 - Keep existing package names during migration; move only when useful.
-- `models/` can be split over time into `dto/` + domain models.
+- CLI-focused structure, no controller layer needed.
 
-## 6) API/CLI Feature Parity Targets
-
-## 6.1 Health
-
-- CLI: `health` (optional convenience command)
-- API: `GET /api/v1/health`
-
-Response:
-
-```json
-{
-  "status": "UP",
-  "mode": "both",
-  "time": "2026-02-26T12:00:00Z"
-}
-```
-
-## 6.2 Authentication
-
-- CLI keeps interactive browser login (`login`, `refresh`).
-- API adds non-interactive token status endpoints:
-  - `GET /api/v1/auth/status`
-  - `POST /api/v1/auth/refresh`
-
-## 6.3 User list
-
-- CLI: existing `list` command
-- API:
-  - `GET /api/v1/users/{userName}/list?status=completed`
-
-## 6.4 Recommendations
-
-- CLI: existing `recommendation` command
-- API:
-  - `GET /api/v1/recommendations/{userName}`
-  - Optional filters: `excludeExisting=true`, `limit=50`, `minScore`.
-
-## 6.5 Seasonal
-
-- CLI: existing `seasonal` command
-- API:
-  - `GET /api/v1/recommendations/seasonal?years=5`
-
-## 7) Recommendation Strategy (near-term)
+## 5) Recommendation Strategy
 
 Phase 1 scoring (current-compatible):
 
@@ -154,7 +87,7 @@ Where weights are externalized in properties:
 - `recommendation.weights.rating`
 - `recommendation.weights.popularity`
 
-## 8) Data & Persistence
+## 6) Data & Persistence
 
 Keep SQLite + Flyway for now.
 
@@ -168,38 +101,16 @@ Near-term additions (optional):
 - `anime_id_mapping` (cross-reference table mapping MyAnimeList IDs to AniList IDs)
 - `recommendation_snapshot` (optional offline debugging/audit)
 
-## 9) Operational Requirements
+## 7) Operational Requirements
 
 - All secrets from environment variables or profile-specific external config.
 - Never commit real API credentials to source control.
-- Structured logs for command execution and API requests.
+- Structured logs for command execution.
 - Graceful shutdown for scheduler and datasource.
 
-## 10) Implementation Checklist
+## 8) Implementation Checklist
 
-## Phase A — Foundation (Hybrid runtime)
-
-- [ ] Add `app.mode` property and conditional enabling for Shell/API.
-- [ ] Add `controller/HealthController` and `GET /api/v1/health`.
-- [ ] Add global exception handling for API (`@ControllerAdvice`).
-- [ ] Standardize API response DTOs in `dto/`.
-
-Acceptance criteria:
-- App starts in all 3 modes (`cli`, `api`, `both`).
-- Health endpoint returns 200 in `api` and `both` modes.
-
-## Phase B — Expose existing capabilities via REST
-
-- [ ] Add `AuthController` (`status`, `refresh`).
-- [ ] Add `UserListController` (`GET /users/{userName}/list`).
-- [ ] Add `RecommendationController` (`/recommendations/{userName}`, `/recommendations/seasonal`).
-- [ ] Ensure controllers call existing services only (no duplicated logic).
-
-Acceptance criteria:
-- CLI outputs and API payloads for equivalent operations are logically consistent.
-- Existing CLI commands continue to work unchanged.
-
-## Phase C — Service refactor for maintainability
+## Phase A — Service Refactor
 
 - [ ] Introduce `RecommendationFacade` for orchestration.
 - [ ] Extract scoring into `RankingService`.
@@ -207,21 +118,21 @@ Acceptance criteria:
 - [ ] Add explanation payload from `ExplanationService`.
 
 Acceptance criteria:
-- Recommendation logic is testable without shell/controller context.
+- Recommendation logic is testable without shell context.
 - Weight tuning can be done by config changes.
 
-## Phase D — Reliability & security hardening
+## Phase B — Reliability & security hardening
 
 - [ ] Move MAL credentials to environment variables.
 - [ ] Rotate compromised/revealed credentials.
-- [ ] Add request logging + correlation ID.
-- [ ] Add integration tests for major endpoints and key CLI command paths.
+- [ ] Add command structured logging.
+- [ ] Add unit tests for major services and key CLI command paths.
 
 Acceptance criteria:
 - No secrets in tracked files.
 - Build + tests pass in CI.
 
-## Phase E — Optional advanced relevance
+## Phase C — Optional advanced relevance
 
 - [ ] Add local cached anime metadata table/service.
 - [ ] Add hybrid ranking signals (rating/popularity/time-decay).
@@ -229,15 +140,16 @@ Acceptance criteria:
 
 Acceptance criteria:
 - Recommendation quality improves with measurable ranking metrics.
-- Existing API contracts remain backward-compatible.
+- Existing CLI behavior remains backward-compatible.
 
-## 11) Non-Goals (for now)
+## 9) Non-Goals
 
+- No HTTP API.
 - No Python service split.
 - No frontend in this repository.
 - No microservice decomposition.
 
-## 11) Multi-Source Anime Lookup (AniList + MyAnimeList Cross-Referencing)
+## 10) Multi-Source Anime Lookup (AniList + MyAnimeList Cross-Referencing)
 
 The system supports cross-referencing anime across multiple databases:
 
@@ -246,16 +158,16 @@ The system supports cross-referencing anime across multiple databases:
 
 ### Strategy
 
-1. User searches for an anime by title.
+1. User searches for an anime by title (via CLI).
 2. First lookup in AniList (GraphQL, typically faster for large datasets).
 3. Use AniList ID to find corresponding MyAnimeList ID via `anime_id_mapping` cache.
 4. Retrieve full recommendation chain from MyAnimeList.
 
 This dual-source approach improves search accuracy and availability (fallback to alternate source if one API is unavailable).
 
-## 12) Advanced: Vector Search (vec2vec) for Similarity Ranking
+## 11) Advanced: Vector Search (vec2vec) for Similarity Ranking
 
-**Phase E+ exploration:** Evaluate embedding-based recommendation refinement:
+**Phase C+ exploration:** Evaluate embedding-based recommendation refinement:
 
 - **Java-native options**:
   - **Lucene KNN**: Built-in approximate nearest neighbor search.
@@ -266,8 +178,8 @@ This dual-source approach improves search accuracy and availability (fallback to
 
 - **Gradual rollout**: Introduce as optional scoring signal (remains backward-compatible with current occurrence-based ranking).
 
-## 13) Migration Notes
+## 12) Migration Notes
 
 - Keep changes incremental and backward-compatible.
-- Prefer adding controllers over rewriting command classes.
+- Prefer adding new CLI commands over rewriting existing ones.
 - Use feature flags/properties for behavior switches where practical.

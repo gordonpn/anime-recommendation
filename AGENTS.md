@@ -10,12 +10,12 @@ This file is addressed to AI coding agents (Copilot, Cursor, Codeium, etc.).
 
 ## Goals
 
-- Implement an anime recommendation backend that:
+- Implement an anime recommendation CLI that:
   - Uses Spring Boot for runtime.
-  - Supports both Spring Shell CLI and Spring Web HTTP APIs.
+  - Supports Spring Shell CLI interface.
   - Integrates with MyAnimeList for authentication, metadata, and recommendations.
 - Keep the design modular and explicit, with clear separation between:
-  - Interface layer (CLI + API).
+  - Interface layer (CLI commands).
   - Service/business logic.
   - Infrastructure (HTTP clients, persistence, scheduling).
 
@@ -23,36 +23,33 @@ This file is addressed to AI coding agents (Copilot, Cursor, Codeium, etc.).
 
 - Use **Java 25** and **Spring Boot 3.x**.
 - Keep existing JPA/Flyway/SQLite setup unless explicitly asked to change it.
-- Do **not** generate a frontend in this repository for now.
+- Do **not** generate a frontend in this repository.
 - Keep external calls behind small, focused services/clients.
-- Avoid duplicating business logic across command and controller classes.
+- Avoid duplicating business logic across different command classes.
 
 ## Implementation Priorities (Order)
 
-1. **Bootstrap**
-  - Keep Spring Boot app as the single runtime.
-  - Add runtime mode support: `app.mode=cli|api|both`.
-  - Implement `GET /api/v1/health`.
-
-2. **API Parity over Existing Services**
-  - Add controllers for auth status/refresh, user list retrieval, and recommendations.
-  - Reuse existing services (`RecommendationService`, `UserListService`, `AnimeService`) instead of rewriting.
-  - Keep CLI commands functional.
-
-3. **Recommendation Refactor**
+1. **Service Refactoring**
+  - Keep Spring Boot app as the single CLI-focused runtime.
   - Introduce orchestration facade (`RecommendationFacade`).
   - Extract ranking logic into `RankingService`.
   - Extract filters into `FilteringService`.
   - Add explanation generation service.
 
-4. **Reliability and Security**
-  - Move credentials to environment variables/external config.
-  - Add API exception handling (`@ControllerAdvice`).
-  - Add tests for service logic + key API routes.
+2. **Recommendation Engine Improvements**
+  - Reuse existing services (`RecommendationService`, `UserListService`, `AnimeService`) for all CLI commands.
+  - Keep CLI commands focused and clear.
+  - Enhance ranking with multiple signals (occurrence, rating, popularity).
 
-5. **Optional Advanced Relevance**
-  - Add weighted blending with additional signals (rating/popularity).
+3. **Reliability and Security**
+  - Move credentials to environment variables/external config.
+  - Add comprehensive exception handling and error messages.
+  - Add tests for service logic and key CLI command paths.
+
+4. **Optional Advanced Relevance**
+  - Add weighted blending with additional signals (rating/popularity/temporal decay).
   - Optionally evaluate Java-native vector search (Lucene/OpenSearch/pgvector).
+  - Add multi-source anime lookup (AniList cross-referencing).
 
 ## Coding Expectations
 
@@ -61,12 +58,13 @@ This file is addressed to AI coding agents (Copilot, Cursor, Codeium, etc.).
 - Keep methods small and composable.
 - Add/adjust tests when introducing significant behavior changes.
 - Preserve existing command names unless migration explicitly requires changes.
+- Keep commands focused on presentation; all business logic in services.
 
 ## Style Preferences
 
-- Use explicit DTOs for API request/response payloads.
-- Handle errors explicitly with meaningful HTTP status codes and messages.
-- Keep class responsibilities focused (controller/service/repository separation).
+- Use explicit domain models for complex data structures.
+- Handle errors explicitly with meaningful error messages.
+- Keep class responsibilities focused (command/service/repository separation).
 - Prefer constructor injection and immutable dependencies.
 
 ## Out of Scope (unless asked)
