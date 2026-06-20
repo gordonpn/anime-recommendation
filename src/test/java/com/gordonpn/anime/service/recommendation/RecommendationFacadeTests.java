@@ -396,4 +396,94 @@ public class RecommendationFacadeTests {
         assertEquals("Recommended Show 2", results.get(1).getTitle());
         assertTrue(results.get(1).getScore() > 0.8 && results.get(1).getScore() < 1.2); // score should be ~1.0
     }
+
+    @Test
+    public void testFreshnessBoostAndHybridTemporalWeighting() throws Exception {
+        // Setup two completed shows: 101 (completed now) and 102 (completed 365 days / ~12 months ago)
+        UserAnimeListEntity c1 = new UserAnimeListEntity();
+        c1.setAnimeId(101);
+        c1.setStatus(ListStatusType.COMPLETED);
+        c1.setUserScore(7);
+        c1.setUpdatedAt(java.time.LocalDateTime.now());
+
+        UserAnimeListEntity c2 = new UserAnimeListEntity();
+        c2.setAnimeId(102);
+        c2.setStatus(ListStatusType.COMPLETED);
+        c2.setUserScore(7);
+        c2.setUpdatedAt(java.time.LocalDateTime.now().minusDays(365));
+
+        when(userAnimeListRepository.findByStatus(ListStatusType.COMPLETED))
+                .thenReturn(List.of(c1, c2));
+        when(userAnimeListRepository.findByStatus(ListStatusType.DROPPED))
+                .thenReturn(Collections.emptyList());
+
+        // Completed Show 101 recommends candidate 201 (New candidate)
+        AnimeDetails details1 = new AnimeDetails();
+        details1.setId(101);
+        details1.setTitle("Completed Recent");
+        
+        Recommendation rec1 = new Recommendation();
+        rec1.setNumRecommendations(2);
+        Node recNode1 = new Node();
+        recNode1.setId(201);
+        recNode1.setTitle("New Recommended");
+        rec1.setNode(recNode1);
+        details1.setRecommendations(List.of(rec1));
+
+        // Completed Show 102 recommends candidate 202 (Old candidate)
+        AnimeDetails details2 = new AnimeDetails();
+        details2.setId(102);
+        details2.setTitle("Completed Old");
+        
+        Recommendation rec2 = new Recommendation();
+        rec2.setNumRecommendations(2);
+        Node recNode2 = new Node();
+        recNode2.setId(202);
+        recNode2.setTitle("Old Recommended");
+        rec2.setNode(recNode2);
+        details2.setRecommendations(List.of(rec2));
+
+        when(animeService.getAnimeById(101)).thenReturn(details1);
+        when(animeService.getAnimeById(102)).thenReturn(details2);
+
+        // Mock filtering
+        when(filteringService.shouldInclude(eq(201), anySet(), anySet())).thenReturn(true);
+        when(filteringService.shouldInclude(eq(202), anySet(), anySet())).thenReturn(true);
+
+        // Candidate 201 (New show, e.g. 2025 release)
+        AnimeDetails recDetails1 = new AnimeDetails();
+        recDetails1.setId(201);
+        recDetails1.setTitle("New Recommended");
+        recDetails1.setStartDate("2025-01-01");
+        recDetails1.setMean(8.0);
+        recDetails1.setPopularity(100);
+
+        // Candidate 202 (Old show, e.g. 2015 release)
+        AnimeDetails recDetails2 = new AnimeDetails();
+        recDetails2.setId(202);
+        recDetails2.setTitle("Old Recommended");
+        recDetails2.setStartDate("2015-01-01");
+        recDetails2.setMean(8.0);
+        recDetails2.setPopularity(100);
+
+        when(animeService.getAnimeById(201)).thenReturn(recDetails1);
+        when(animeService.getAnimeById(202)).thenReturn(recDetails2);
+
+        // Mock rankingService to return occurrence as score
+        when(rankingService.calculateScore(anyDouble(), any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(explanationService.generateExplanation(anyDouble(), anyList())).thenReturn("Explained!");
+
+        // Execute hybrid test: decayMonths = 12 (halves old show's occurrence to 1.0, recent show remains 2.0)
+        // and freshnessBoost = 0.2
+        // Show 1 (2025) is 1 year old -> boost = exp(-0.2 * 1.0) = 0.8187 -> final score = 2.0 * 0.8187 = 1.637
+        // Show 2 (2015) is 11 years old -> boost = exp(-0.2 * 11.0) = 0.1108 -> final score = 1.0 * 0.1108 = 0.111
+        List<RecommendationDetailedResult> results = recommendationFacade.getRecommendations("@me", 10, null, null, 12, 0.2);
+
+        assertNotNull(results);
+        assertEquals(2, results.size());
+        assertEquals("New Recommended", results.get(0).getTitle());
+        assertTrue(results.get(0).getScore() > 1.5 && results.get(0).getScore() < 1.7);
+        assertEquals("Old Recommended", results.get(1).getTitle());
+        assertTrue(results.get(1).getScore() > 0.1 && results.get(1).getScore() < 0.12);
+    }
 }
