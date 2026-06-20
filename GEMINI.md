@@ -48,3 +48,9 @@
 - **Fallback:** In interactive mode, if the user leaves the input blank and hits `Enter`, the default value is automatically applied.
 - **Compatibility:** Passing command-line options directly (e.g., `recommendation --userName test`) skips prompting, which preserves non-interactive usage and compatibility for scripts and unit tests.
 - **Mechanism:** Uses a lazily-injected JLine `LineReader` via `ObjectProvider<LineReader>` to safely query user input if Spring Shell is running.
+
+### Fail-Fast Error Propagation Strategy
+- **Transient vs. Permanent Exception Differentiation:** To ensure the accuracy of recommendation results, the application differentiates error types:
+  - **Permanent Errors (404 Not Found):** Wrapped in `MalResourceNotFoundException`. Caught in detail-fetching loops (facade, commands) to log warning/info and skip the item cleanly, allowing execution to continue.
+  - **Transient Errors (unexpected HTML/429/5xx/network errors):** Rethrown by the services (`AnimeService`, `UserListService`) and facade layers. The command/facade execution aborts immediately, guaranteeing that recommendations are never built on incomplete datasets.
+
