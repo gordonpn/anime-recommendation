@@ -1,6 +1,6 @@
 package com.gordonpn.anime.controller;
 
-import com.gordonpn.anime.models.TokenResponse;
+import com.gordonpn.anime.entity.TokenEntity;
 import com.gordonpn.anime.repository.TokenRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -41,7 +41,7 @@ public class HealthControllerTests {
 
     @Test
     public void testDeepHealthValidToken() throws Exception {
-        TokenResponse mockToken = new TokenResponse();
+        TokenEntity mockToken = new TokenEntity();
         mockToken.setAccessToken("valid-token");
         mockToken.setExpiresAt(LocalDateTime.now().plusDays(1));
 
@@ -59,7 +59,7 @@ public class HealthControllerTests {
 
     @Test
     public void testDeepHealthExpiredToken() throws Exception {
-        TokenResponse mockToken = new TokenResponse();
+        TokenEntity mockToken = new TokenEntity();
         mockToken.setAccessToken("expired-token");
         mockToken.setExpiresAt(LocalDateTime.now().minusDays(1));
 

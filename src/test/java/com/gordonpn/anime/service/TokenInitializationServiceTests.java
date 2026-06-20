@@ -1,7 +1,8 @@
 package com.gordonpn.anime.service;
 
 import com.gordonpn.anime.config.AuthorizationState;
-import com.gordonpn.anime.models.TokenResponse;
+import com.gordonpn.anime.entity.TokenEntity;
+import com.gordonpn.anime.models.dto.TokenResponse;
 import com.gordonpn.anime.repository.TokenRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,26 +29,40 @@ public class TokenInitializationServiceTests {
 
     @Test
     public void testInitializeTokensValidToken() {
-        TokenResponse mockToken = new TokenResponse();
-        mockToken.setExpiresAt(LocalDateTime.now().plusHours(1));
+        TokenEntity mockEntity = new TokenEntity();
+        mockEntity.setAccessToken("access");
+        mockEntity.setRefreshToken("refresh");
+        mockEntity.setExpiresAt(LocalDateTime.now().plusHours(1));
 
-        when(tokenRepository.findFirstByOrderByIdDesc()).thenReturn(mockToken);
+        when(tokenRepository.findFirstByOrderByIdDesc()).thenReturn(mockEntity);
 
         tokenInitializationService.initializeTokens();
 
-        verify(authorizationState, times(1)).setTokenResponse(mockToken);
+        TokenResponse expectedToken = new TokenResponse();
+        expectedToken.setAccessToken("access");
+        expectedToken.setRefreshToken("refresh");
+        expectedToken.setExpiresAt(mockEntity.getExpiresAt());
+
+        verify(authorizationState, times(1)).setTokenResponse(expectedToken);
     }
 
     @Test
     public void testInitializeTokensExpiredToken() {
-        TokenResponse mockToken = new TokenResponse();
-        mockToken.setExpiresAt(LocalDateTime.now().minusHours(1));
+        TokenEntity mockEntity = new TokenEntity();
+        mockEntity.setAccessToken("access");
+        mockEntity.setRefreshToken("refresh");
+        mockEntity.setExpiresAt(LocalDateTime.now().minusHours(1));
 
-        when(tokenRepository.findFirstByOrderByIdDesc()).thenReturn(mockToken);
+        when(tokenRepository.findFirstByOrderByIdDesc()).thenReturn(mockEntity);
 
         tokenInitializationService.initializeTokens();
 
-        verify(authorizationState, times(1)).setTokenResponse(mockToken);
+        TokenResponse expectedToken = new TokenResponse();
+        expectedToken.setAccessToken("access");
+        expectedToken.setRefreshToken("refresh");
+        expectedToken.setExpiresAt(mockEntity.getExpiresAt());
+
+        verify(authorizationState, times(1)).setTokenResponse(expectedToken);
     }
 
     @Test

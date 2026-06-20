@@ -1,6 +1,5 @@
 package com.gordonpn.anime.controller;
 
-import com.gordonpn.anime.models.TokenResponse;
 import com.gordonpn.anime.repository.TokenRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -57,7 +56,7 @@ public class HealthController {
         // 2. Check MAL Authentication status
         Map<String, Object> malHealth = new HashMap<>();
         try {
-            TokenResponse latestToken = tokenRepository.findFirstByOrderByIdDesc();
+            com.gordonpn.anime.entity.TokenEntity latestToken = tokenRepository.findFirstByOrderByIdDesc();
             if (latestToken == null) {
                 malHealth.put("status", "UP"); // Configured but auth hasn't happened yet
                 malHealth.put("tokenStatus", "MISSING");

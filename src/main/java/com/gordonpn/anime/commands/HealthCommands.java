@@ -1,6 +1,5 @@
 package com.gordonpn.anime.commands;
 
-import com.gordonpn.anime.models.TokenResponse;
 import com.gordonpn.anime.repository.TokenRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,7 +43,7 @@ public class HealthCommands {
         // 2. Check MAL credentials and authentication status
         sb.append("[MyAnimeList Authorization status]\n");
         try {
-            TokenResponse latestToken = tokenRepository.findFirstByOrderByIdDesc();
+            com.gordonpn.anime.entity.TokenEntity latestToken = tokenRepository.findFirstByOrderByIdDesc();
             if (latestToken == null) {
                 sb.append("  Token status: MISSING (Please run 'login' to authenticate)\n");
             } else if (latestToken.getExpiresAt() != null && latestToken.getExpiresAt().isBefore(LocalDateTime.now())) {

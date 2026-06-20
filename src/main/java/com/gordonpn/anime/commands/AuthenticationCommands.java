@@ -4,8 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.gordonpn.anime.config.AuthorizationState;
 import com.gordonpn.anime.config.PKCEStateHolder;
 import com.gordonpn.anime.handler.OAuth2ServerHandler;
-import com.gordonpn.anime.models.PKCEPair;
-import com.gordonpn.anime.models.TokenResponse;
+import com.gordonpn.anime.models.dto.PKCEPair;
+import com.gordonpn.anime.models.dto.TokenResponse;
 import com.gordonpn.anime.repository.TokenRepository;
 import com.gordonpn.anime.service.TokenExchangeService;
 import lombok.RequiredArgsConstructor;
@@ -56,6 +56,10 @@ public class AuthenticationCommands {
 
     private void saveTokens(TokenResponse tokens) {
         log.info("Persisting tokens to database");
-        tokenRepository.save(tokens);
+        com.gordonpn.anime.entity.TokenEntity entity = new com.gordonpn.anime.entity.TokenEntity();
+        entity.setAccessToken(tokens.getAccessToken());
+        entity.setRefreshToken(tokens.getRefreshToken());
+        entity.setExpiresAt(tokens.getExpiresAt());
+        tokenRepository.save(entity);
     }
 }

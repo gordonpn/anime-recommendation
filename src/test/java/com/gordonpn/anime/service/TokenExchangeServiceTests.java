@@ -1,7 +1,7 @@
 package com.gordonpn.anime.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gordonpn.anime.models.TokenResponse;
+import com.gordonpn.anime.models.dto.TokenResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -7,7 +7,7 @@ import com.gordonpn.anime.entity.UserAnimeListEntity;
 import com.gordonpn.anime.models.AnimeList;
 import com.gordonpn.anime.models.Datum;
 import com.gordonpn.anime.models.ListStatusType;
-import com.gordonpn.anime.models.TokenResponse;
+import com.gordonpn.anime.models.dto.TokenResponse;
 import com.gordonpn.anime.models.userlist.Status;
 import com.gordonpn.anime.repository.SyncStatusRepository;
 import com.gordonpn.anime.repository.TokenRepository;
@@ -44,7 +44,12 @@ public class BackgroundFetchService {
             return;
         }
         authorizationState.setTokenResponse(tokens);
-        tokenRepository.save(tokens);
+        
+        com.gordonpn.anime.entity.TokenEntity tokenEntity = new com.gordonpn.anime.entity.TokenEntity();
+        tokenEntity.setAccessToken(tokens.getAccessToken());
+        tokenEntity.setRefreshToken(tokens.getRefreshToken());
+        tokenEntity.setExpiresAt(tokens.getExpiresAt());
+        tokenRepository.save(tokenEntity);
 
         java.util.Set<Integer> fetchedAnimeIds = new java.util.HashSet<>();
 

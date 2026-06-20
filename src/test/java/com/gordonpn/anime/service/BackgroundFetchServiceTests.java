@@ -4,6 +4,8 @@ import com.gordonpn.anime.config.AuthorizationState;
 import com.gordonpn.anime.entity.SyncStatusEntity;
 import com.gordonpn.anime.entity.UserAnimeListEntity;
 import com.gordonpn.anime.models.*;
+import com.gordonpn.anime.models.dto.TokenResponse;
+import com.gordonpn.anime.entity.TokenEntity;
 import com.gordonpn.anime.models.userlist.Status;
 import com.gordonpn.anime.repository.SyncStatusRepository;
 import com.gordonpn.anime.repository.TokenRepository;
@@ -73,7 +75,7 @@ public class BackgroundFetchServiceTests {
 
         backgroundFetchService.fetchList();
 
-        verify(tokenRepository, times(1)).save(mockToken);
+        verify(tokenRepository, times(1)).save(any(TokenEntity.class));
         // Verify userAnimeListRepository.save is called for each status (Status.values().length = 6)
         verify(userAnimeListRepository, times(Status.values().length)).save(any(UserAnimeListEntity.class));
         verify(syncStatusRepository, times(Status.values().length)).save(any(SyncStatusEntity.class));

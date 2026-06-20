@@ -2,7 +2,8 @@ package com.gordonpn.anime.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gordonpn.anime.models.TokenResponse;
+import com.gordonpn.anime.models.dto.TokenResponse;
+import com.gordonpn.anime.models.exception.AnimeDataProcessingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -49,7 +50,7 @@ public class TokenExchangeService {
         try {
             return objectMapper.readValue(body, TokenResponse.class);
         } catch (JsonProcessingException e) {
-            throw new com.gordonpn.anime.models.AnimeDataProcessingException("Failed to parse exchange token JSON", e);
+            throw new AnimeDataProcessingException("Failed to parse exchange token JSON", e);
         }
     }
 
@@ -89,7 +90,7 @@ public class TokenExchangeService {
         try {
             return objectMapper.readValue(body, TokenResponse.class);
         } catch (JsonProcessingException e) {
-            throw new com.gordonpn.anime.models.AnimeDataProcessingException("Failed to parse refresh token JSON", e);
+            throw new AnimeDataProcessingException("Failed to parse refresh token JSON", e);
         }
     }
 }

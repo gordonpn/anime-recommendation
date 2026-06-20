@@ -1,6 +1,6 @@
 package com.gordonpn.anime.commands;
 
-import com.gordonpn.anime.models.TokenResponse;
+import com.gordonpn.anime.entity.TokenEntity;
 import com.gordonpn.anime.repository.TokenRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +31,7 @@ public class HealthCommandsTests {
 
     @Test
     public void testHealthReportValidToken() {
-        TokenResponse mockToken = new TokenResponse();
+        TokenEntity mockToken = new TokenEntity();
         mockToken.setExpiresAt(LocalDateTime.now().plusDays(1));
 
         when(tokenRepository.count()).thenReturn(1L);

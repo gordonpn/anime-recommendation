@@ -1,7 +1,8 @@
 package com.gordonpn.anime.service;
 
 import com.gordonpn.anime.config.AuthorizationState;
-import com.gordonpn.anime.models.TokenResponse;
+import com.gordonpn.anime.entity.TokenEntity;
+import com.gordonpn.anime.models.dto.TokenResponse;
 import com.gordonpn.anime.repository.TokenRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -20,9 +21,14 @@ public class TokenInitializationService {
     @PostConstruct
     public void initializeTokens() {
         log.info("Looking for existing tokens in database");
-        TokenResponse latestToken = tokenRepository.findFirstByOrderByIdDesc();
+        TokenEntity latestEntity = tokenRepository.findFirstByOrderByIdDesc();
 
-        if (latestToken != null) {
+        if (latestEntity != null) {
+            TokenResponse latestToken = new TokenResponse();
+            latestToken.setAccessToken(latestEntity.getAccessToken());
+            latestToken.setRefreshToken(latestEntity.getRefreshToken());
+            latestToken.setExpiresAt(latestEntity.getExpiresAt());
+
             if (latestToken.getExpiresAt() != null && latestToken.getExpiresAt().isAfter(LocalDateTime.now())) {
                 log.info("Found valid token, loading into application state");
                 authorizationState.setTokenResponse(latestToken);
