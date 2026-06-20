@@ -2,6 +2,7 @@ package com.gordonpn.anime.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gordonpn.anime.models.*;
+import com.gordonpn.anime.models.dto.RecommendationDetailedResult;
 import com.gordonpn.anime.service.recommendation.RecommendationFacade;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

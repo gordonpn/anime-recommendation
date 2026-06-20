@@ -2,6 +2,8 @@ package com.gordonpn.anime.service.recommendation;
 
 import com.gordonpn.anime.entity.UserAnimeListEntity;
 import com.gordonpn.anime.models.*;
+import com.gordonpn.anime.models.dto.RecommendationDetailedResult;
+import com.gordonpn.anime.models.exception.MalResourceNotFoundException;
 import com.gordonpn.anime.models.userlist.Status;
 import com.gordonpn.anime.repository.AnimeCacheRepository;
 import com.gordonpn.anime.repository.UserAnimeListRepository;

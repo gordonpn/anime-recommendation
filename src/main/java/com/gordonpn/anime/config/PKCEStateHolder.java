@@ -1,6 +1,6 @@
 package com.gordonpn.anime.config;
 
-import com.gordonpn.anime.models.PKCEPair;
+import com.gordonpn.anime.models.dto.PKCEPair;
 import lombok.NoArgsConstructor;
 import org.springframework.stereotype.Component;
 

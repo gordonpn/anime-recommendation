@@ -1,6 +1,6 @@
 package com.gordonpn.anime.util;
 
-import com.gordonpn.anime.models.PKCEPair;
+import com.gordonpn.anime.models.dto.PKCEPair;
 import org.springframework.stereotype.Component;
 
 import java.security.SecureRandom;

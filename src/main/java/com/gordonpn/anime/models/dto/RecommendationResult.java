@@ -1,4 +1,4 @@
-package com.gordonpn.anime.models;
+package com.gordonpn.anime.models.dto;
 
 import lombok.Builder;
 import lombok.Data;

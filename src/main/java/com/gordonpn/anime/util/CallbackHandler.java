@@ -1,6 +1,6 @@
 package com.gordonpn.anime.util;
 
-import com.gordonpn.anime.models.AuthCodeParsingException;
+import com.gordonpn.anime.models.exception.AuthCodeParsingException;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.BufferedReader;

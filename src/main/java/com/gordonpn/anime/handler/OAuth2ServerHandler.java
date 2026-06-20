@@ -2,7 +2,7 @@ package com.gordonpn.anime.handler;
 
 import com.gordonpn.anime.config.AuthorizationState;
 import com.gordonpn.anime.config.PKCEStateHolder;
-import com.gordonpn.anime.models.PKCEPair;
+import com.gordonpn.anime.models.dto.PKCEPair;
 import com.gordonpn.anime.service.MalAuthService;
 import com.gordonpn.anime.util.Browser;
 import com.gordonpn.anime.util.CallbackHandler;

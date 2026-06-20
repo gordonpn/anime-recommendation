@@ -10,8 +10,9 @@ import com.gordonpn.anime.models.Node;
 import com.gordonpn.anime.models.Datum;
 import com.gordonpn.anime.models.RelatedAnime;
 import com.gordonpn.anime.models.SeasonalAnime;
-import com.gordonpn.anime.models.SeasonalAnimeResult;
-import com.gordonpn.anime.models.MalResourceNotFoundException;
+import com.gordonpn.anime.models.dto.SeasonalAnimeResult;
+import com.gordonpn.anime.models.exception.MalResourceNotFoundException;
+import com.gordonpn.anime.models.exception.AnimeDataProcessingException;
 import com.gordonpn.anime.service.AnimeService;
 import com.gordonpn.anime.service.RecommendationService;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +35,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.TreeSet;
 
-import com.gordonpn.anime.models.RecommendationDetailedResult;
+import com.gordonpn.anime.models.dto.RecommendationDetailedResult;
 import com.gordonpn.anime.service.recommendation.RecommendationFacade;
 
 @ShellComponent
@@ -73,7 +74,7 @@ public class RecommendationCommands {
             try {
                 return objectMapper.writeValueAsString(recommendations);
             } catch (JsonProcessingException e) {
-                throw new com.gordonpn.anime.models.AnimeDataProcessingException("Failed to format recommendations as JSON", e);
+                throw new AnimeDataProcessingException("Failed to format recommendations as JSON", e);
             }
         }
 
@@ -275,7 +276,7 @@ public class RecommendationCommands {
             try {
                 return objectMapper.writeValueAsString(sortedResult.stream().limit(finalLimit).toList());
             } catch (JsonProcessingException e) {
-                throw new com.gordonpn.anime.models.AnimeDataProcessingException("Failed to format seasonal anime as JSON", e);
+                throw new AnimeDataProcessingException("Failed to format seasonal anime as JSON", e);
             }
         }
 
@@ -317,7 +318,7 @@ public class RecommendationCommands {
             try {
                 return objectMapper.writeValueAsString(data.stream().limit(finalLimit).toList());
             } catch (JsonProcessingException e) {
-                throw new com.gordonpn.anime.models.AnimeDataProcessingException("Failed to format suggestions as JSON", e);
+                throw new AnimeDataProcessingException("Failed to format suggestions as JSON", e);
             }
         }
 

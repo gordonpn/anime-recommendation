@@ -7,8 +7,9 @@ import com.gordonpn.anime.models.AnimeList;
 import com.gordonpn.anime.models.Datum;
 import com.gordonpn.anime.models.Node;
 import com.gordonpn.anime.models.Recommendation;
-import com.gordonpn.anime.models.RecommendationDetailedResult;
-import com.gordonpn.anime.models.RecommendationResult;
+import com.gordonpn.anime.models.dto.RecommendationDetailedResult;
+import com.gordonpn.anime.models.dto.RecommendationResult;
+import com.gordonpn.anime.models.exception.AnimeDataProcessingException;
 import com.gordonpn.anime.models.userlist.Status;
 import com.gordonpn.anime.service.recommendation.RecommendationFacade;
 import lombok.RequiredArgsConstructor;
@@ -61,7 +62,7 @@ public class RecommendationService {
         try {
             return objectMapper.readValue(body, AnimeList.class);
         } catch (JsonProcessingException e) {
-            throw new com.gordonpn.anime.models.AnimeDataProcessingException("Failed to parse suggestions JSON", e);
+            throw new AnimeDataProcessingException("Failed to parse suggestions JSON", e);
         }
     }
 }

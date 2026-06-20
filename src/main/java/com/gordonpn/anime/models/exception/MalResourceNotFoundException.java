@@ -1,4 +1,4 @@
-package com.gordonpn.anime.models;
+package com.gordonpn.anime.models.exception;
 
 public class MalResourceNotFoundException extends RuntimeException {
     public MalResourceNotFoundException(String message) {

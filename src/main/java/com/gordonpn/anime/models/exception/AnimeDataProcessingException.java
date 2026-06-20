@@ -1,4 +1,4 @@
-package com.gordonpn.anime.models;
+package com.gordonpn.anime.models.exception;
 
 public class AnimeDataProcessingException extends RuntimeException {
     public AnimeDataProcessingException(String message) {

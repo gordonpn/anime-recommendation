@@ -1,6 +1,6 @@
 package com.gordonpn.anime.config;
 
-import com.gordonpn.anime.models.TokenResponse;
+import com.gordonpn.anime.models.dto.TokenResponse;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;

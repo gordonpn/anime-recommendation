@@ -2,6 +2,7 @@ package com.gordonpn.anime.commands;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gordonpn.anime.models.*;
+import com.gordonpn.anime.models.dto.RecommendationDetailedResult;
 import com.gordonpn.anime.service.AnimeService;
 import com.gordonpn.anime.service.RecommendationService;
 import com.gordonpn.anime.service.recommendation.RecommendationFacade;

@@ -1,8 +1,8 @@
 package com.gordonpn.anime.controller;
 
-import com.gordonpn.anime.models.AnimeDataProcessingException;
-import com.gordonpn.anime.models.AuthCodeParsingException;
-import com.gordonpn.anime.models.MalResourceNotFoundException;
+import com.gordonpn.anime.models.exception.AnimeDataProcessingException;
+import com.gordonpn.anime.models.exception.AuthCodeParsingException;
+import com.gordonpn.anime.models.exception.MalResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;

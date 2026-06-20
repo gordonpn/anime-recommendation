@@ -1,4 +1,4 @@
-package com.gordonpn.anime.models;
+package com.gordonpn.anime.models.exception;
 
 public class AuthCodeParsingException extends RuntimeException {
     public AuthCodeParsingException(String message) {
