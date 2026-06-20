@@ -136,14 +136,15 @@ public class RecommendationCommandsTests {
                 .thenReturn("5")
                 .thenReturn("")
                 .thenReturn("")
+                .thenReturn("")
                 .thenReturn("");
 
         List<RecommendationDetailedResult> recs = List.of(
                 RecommendationDetailedResult.builder().id(12).title("Test").score(10.0).build()
         );
-        when(recommendationFacade.getRecommendations("@me", 5, null, null, null)).thenReturn(recs);
+        when(recommendationFacade.getRecommendations("@me", 5, null, null, null, null)).thenReturn(recs);
 
-        String result = recommendationCommands.recommendation(null, null, null, null, null, null);
+        String result = recommendationCommands.recommendation(null, null, null, null, null, null, null);
 
         assertNotNull(result);
         assertTrue(result.contains("\"id\":12"));
