@@ -56,7 +56,8 @@ public class RecommendationCommands {
             @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum number of recommendations to return") Integer limit,
             @ShellOption(defaultValue = ShellOption.NULL, help = "Minimum release year filter") Integer minYear,
             @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum release year filter") Integer maxYear,
-            @ShellOption(defaultValue = ShellOption.NULL, help = "Decay parameter in months for temporal decay weighting (half-life)") Integer decayMonths) throws JsonProcessingException {
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Decay parameter in months for temporal decay weighting (half-life)") Integer decayMonths,
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Freshness boost parameter for release date weighting (decay rate)") Double freshnessBoost) throws JsonProcessingException {
         
         String finalUserName = userName != null ? userName : promptString("Enter MyAnimeList username", "@me");
         boolean finalJson = json != null ? json : promptBoolean("Output in JSON format?", false);
@@ -64,8 +65,9 @@ public class RecommendationCommands {
         Integer finalMinYear = minYear != null ? minYear : promptOptionalInt("Enter minimum release year (optional, leave blank for none)", null);
         Integer finalMaxYear = maxYear != null ? maxYear : promptOptionalInt("Enter maximum release year (optional, leave blank for none)", null);
         Integer finalDecayMonths = decayMonths != null ? decayMonths : promptOptionalInt("Enter temporal decay half-life in months (optional, leave blank for none)", null);
+        Double finalFreshnessBoost = freshnessBoost != null ? freshnessBoost : promptOptionalDouble("Enter freshness boost parameter (optional, leave blank for none)", null);
 
-        List<RecommendationDetailedResult> recommendations = recommendationFacade.getRecommendations(finalUserName, finalLimit, finalMinYear, finalMaxYear, finalDecayMonths);
+        List<RecommendationDetailedResult> recommendations = recommendationFacade.getRecommendations(finalUserName, finalLimit, finalMinYear, finalMaxYear, finalDecayMonths, finalFreshnessBoost);
         
         if (finalJson) {
             return objectMapper.writeValueAsString(recommendations);
@@ -371,6 +373,20 @@ public class RecommendationCommands {
         }
         try {
             return Integer.parseInt(response);
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid number format. Using default: " + (defaultValue != null ? defaultValue : "none"));
+            return defaultValue;
+        }
+    }
+
+    private Double promptOptionalDouble(String promptText, Double defaultValue) {
+        String defaultStr = defaultValue != null ? String.valueOf(defaultValue) : "";
+        String response = promptString(promptText, defaultStr);
+        if (response.isEmpty()) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(response);
         } catch (NumberFormatException e) {
             System.out.println("Invalid number format. Using default: " + (defaultValue != null ? defaultValue : "none"));
             return defaultValue;
