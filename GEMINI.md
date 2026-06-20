@@ -33,6 +33,11 @@
 ### Multi-Signal Recommendation Ranking
 - **User Score Weighted Scaling:** To allow the user's taste to guide the ranking, the recommendation occurrence count is scaled by `avgCompletedGroupRating / 7.0` (using `1.0` if the completed show was unrated).
 
+### Temporal Recommendation Decay
+- **Concept:** Recent shows in the user's completed list should influence recommendations more heavily than older shows, since taste evolves over time.
+- **Decay Formula:** Assign decay weights based on completion date: $w = 2.0^{-\frac{t}{\text{decayMonths}}}$, where $t$ is the elapsed completion age in decimal months ($t = \text{days} / 30.4375$). The `decayMonths` represents the half-life parameter.
+- **CLI/Parameter Integration:** Exposed as an optional `--decay-months` parameter in the `recommendation` command, prompting interactively if not provided as a direct flag.
+
 ### API Request Retry Interceptor with Exponential Backoff
 - **Transient vs. Permanent Errors:**
   - **Fail-Fast (No Retry):** `404 Not Found`, `401 Unauthorized`, `403 Forbidden`. These represent permanent access or resource states. Skipping retries saves request rate limits and prevents long execution delays.
