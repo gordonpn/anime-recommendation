@@ -30,13 +30,18 @@ public class RecommendationFacade {
     private final ExplanationService explanationService;
 
     public List<RecommendationDetailedResult> getRecommendations(String userName, int limit) throws JsonProcessingException {
-        return getRecommendations(userName, limit, null, null);
+        return getRecommendations(userName, limit, null, null, null);
     }
 
     public List<RecommendationDetailedResult> getRecommendations(String userName, int limit, Integer minYear, Integer maxYear) throws JsonProcessingException {
+        return getRecommendations(userName, limit, minYear, maxYear, null);
+    }
+
+    public List<RecommendationDetailedResult> getRecommendations(String userName, int limit, Integer minYear, Integer maxYear, Integer decayMonths) throws JsonProcessingException {
         List<Integer> completedIds = new ArrayList<>();
         Map<Integer, String> completedIdToTitleMap = new HashMap<>();
         Map<Integer, Integer> completedIdToUserScoreMap = new HashMap<>();
+        Map<Integer, java.time.LocalDateTime> completedIdToCompletionDateMap = new HashMap<>();
         Set<Integer> droppedIds = new HashSet<>();
 
         // 1. Gather completed & dropped lists
@@ -52,6 +57,7 @@ public class RecommendationFacade {
                         .orElse("Unknown Anime (ID: " + entity.getAnimeId() + ")");
                 completedIdToTitleMap.put(entity.getAnimeId(), title);
                 completedIdToUserScoreMap.put(entity.getAnimeId(), entity.getUserScore());
+                completedIdToCompletionDateMap.put(entity.getAnimeId(), entity.getUpdatedAt());
             }
             for (UserAnimeListEntity entity : droppedLocal) {
                 droppedIds.add(entity.getAnimeId());
@@ -68,6 +74,14 @@ public class RecommendationFacade {
                     completedIdToTitleMap.put(id, datum.getNode().getTitle());
                     if (datum.getListStatus() != null) {
                         completedIdToUserScoreMap.put(id, datum.getListStatus().getScore());
+                        String updatedAtStr = datum.getListStatus().getUpdatedAt();
+                        if (updatedAtStr != null && !updatedAtStr.isEmpty()) {
+                            try {
+                                completedIdToCompletionDateMap.put(id, java.time.OffsetDateTime.parse(updatedAtStr).toLocalDateTime());
+                            } catch (Exception e) {
+                                log.warn("Failed to parse completion date '{}' for anime ID {}: {}", updatedAtStr, id, e.getMessage());
+                            }
+                        }
                     }
                 }
             }
@@ -219,8 +233,21 @@ public class RecommendationFacade {
                 if (filteringService.shouldInclude(recNodeId, completedIdsSet, droppedIds)) {
                     int numRecs = recommendation.getNumRecommendations() != null ? recommendation.getNumRecommendations() : 1;
                     
+                    // Apply temporal decay if configured
+                    double decayWeight = 1.0;
+                    if (decayMonths != null && decayMonths > 0) {
+                        java.time.LocalDateTime completionDate = completedIdToCompletionDateMap.get(completedId);
+                        if (completionDate != null) {
+                            long days = java.time.temporal.ChronoUnit.DAYS.between(completionDate, java.time.LocalDateTime.now());
+                            double tMonths = Math.max(0.0, days / 30.4375);
+                            decayWeight = Math.pow(2.0, -tMonths / decayMonths);
+                        } else {
+                            decayWeight = 1.0; // default to no decay if date is missing
+                        }
+                    }
+
                     // Weighted recommendation count
-                    double weightedRec = numRecs * userRatingMultiplier;
+                    double weightedRec = numRecs * userRatingMultiplier * decayWeight;
                     
                     recOccurrenceMap.merge(recNodeId, weightedRec, Double::sum);
                     
