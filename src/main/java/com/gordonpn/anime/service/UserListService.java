@@ -62,7 +62,8 @@ public class UserListService {
 
         log.info("Cache miss or expired for user list key: {}. Fetching from MAL", cacheKey);
         long backoffMs = initialBackoffMs;
-        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+        boolean infinite = maxAttempts <= 0;
+        for (int attempt = 1; infinite || attempt <= maxAttempts; attempt++) {
             try {
                 String body = apiKeyClient.get()
                         .uri(uriBuilder -> {
@@ -100,16 +101,18 @@ public class UserListService {
                 log.error("User {} not found on MyAnimeList (404 Not Found): {}", userName, e.getMessage());
                 throw new MalResourceNotFoundException("User " + userName + " not found on MyAnimeList", e);
             } catch (Exception e) {
-                if (attempt < maxAttempts) {
-                    log.warn("Attempt {} of {} failed to fetch user list for {} due to: {}. Retrying in {}ms...",
-                            attempt, maxAttempts, userName, e.getMessage(), backoffMs);
+                boolean shouldRetry = infinite || (attempt < maxAttempts);
+                if (shouldRetry) {
+                    String attemptStr = infinite ? String.valueOf(attempt) : (attempt + " of " + maxAttempts);
+                    log.warn("Attempt {} failed to fetch user list for {} due to: {}. Retrying in {}ms...",
+                            attemptStr, userName, e.getMessage(), backoffMs);
                     try {
                         Thread.sleep(backoffMs);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         throw new RuntimeException("Retry wait interrupted", ie);
                     }
-                    backoffMs = (long) (backoffMs * backoffMultiplier);
+                    backoffMs = Math.min(15000L, (long) (backoffMs * backoffMultiplier));
                 } else {
                     log.error("Failed to fetch or parse user list key {} from MAL after {} attempts: {}", cacheKey, maxAttempts, e.getMessage());
                     if (cachedOpt.isPresent()) {
