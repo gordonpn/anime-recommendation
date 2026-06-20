@@ -56,9 +56,9 @@ public class BackgroundFetchService {
                 continue;
             }
             ListStatusType listStatusType = ListStatusType.fromValue(status.getType());
-            log.info("Converting status from {} to ListStatusType {}", status.getType(), listStatusType);
+            log.debug("Converting status from {} to ListStatusType {}", status.getType(), listStatusType);
             for (Datum datum : listByUserName.getData()) {
-                log.info("Processing anime: {}. Status: {}", datum.toString(), listStatusType);
+                log.debug("Processing anime: {}. Status: {}", datum.toString(), listStatusType);
                 Integer animeId = datum.getNode().getId();
                 fetchedAnimeIds.add(animeId);
 
@@ -71,7 +71,7 @@ public class BackgroundFetchService {
                 }
 
                 userAnimeListRepository.save(entity);
-                log.info("Saved/updated anime in user list table: {} (ID: {})", datum.getNode().getTitle(), animeId);
+                log.debug("Saved/updated anime in user list table: {} (ID: {})", datum.getNode().getTitle(), animeId);
             }
             LocalDateTime now = LocalDateTime.now();
             SyncStatusEntity syncStatus = syncStatusRepository.findById(listStatusType.getValue())
@@ -79,7 +79,7 @@ public class BackgroundFetchService {
             syncStatus.setListType(listStatusType.getValue());
             syncStatus.setLastSyncedAt(now);
             syncStatusRepository.save(syncStatus);
-            log.info("Updated sync status timestamp for: {}", listStatusType);
+            log.debug("Updated sync status timestamp for: {}", listStatusType);
             log.info("Saved {} anime entries", listByUserName.getData().size());
         }
 
