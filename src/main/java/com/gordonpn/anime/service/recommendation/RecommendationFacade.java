@@ -29,19 +29,19 @@ public class RecommendationFacade {
     private final RankingService rankingService;
     private final ExplanationService explanationService;
 
-    public List<RecommendationDetailedResult> getRecommendations(String userName, int limit) throws JsonProcessingException {
+    public List<RecommendationDetailedResult> getRecommendations(String userName, int limit) {
         return getRecommendations(userName, limit, null, null, null, null);
     }
 
-    public List<RecommendationDetailedResult> getRecommendations(String userName, int limit, Integer minYear, Integer maxYear) throws JsonProcessingException {
+    public List<RecommendationDetailedResult> getRecommendations(String userName, int limit, Integer minYear, Integer maxYear) {
         return getRecommendations(userName, limit, minYear, maxYear, null, null);
     }
 
-    public List<RecommendationDetailedResult> getRecommendations(String userName, int limit, Integer minYear, Integer maxYear, Integer decayMonths) throws JsonProcessingException {
+    public List<RecommendationDetailedResult> getRecommendations(String userName, int limit, Integer minYear, Integer maxYear, Integer decayMonths) {
         return getRecommendations(userName, limit, minYear, maxYear, decayMonths, null);
     }
 
-    public List<RecommendationDetailedResult> getRecommendations(String userName, int limit, Integer minYear, Integer maxYear, Integer decayMonths, Double freshnessBoost) throws JsonProcessingException {
+    public List<RecommendationDetailedResult> getRecommendations(String userName, int limit, Integer minYear, Integer maxYear, Integer decayMonths, Double freshnessBoost) {
         List<Integer> completedIds = new ArrayList<>();
         Map<Integer, String> completedIdToTitleMap = new HashMap<>();
         Map<Integer, Integer> completedIdToUserScoreMap = new HashMap<>();
@@ -331,7 +331,7 @@ public class RecommendationFacade {
                 .collect(Collectors.toList());
     }
 
-    private Double calculateOverallFranchiseRating(AnimeDetails candidateDetails) throws JsonProcessingException {
+    private Double calculateOverallFranchiseRating(AnimeDetails candidateDetails) {
         if (candidateDetails == null) {
             return null;
         }
