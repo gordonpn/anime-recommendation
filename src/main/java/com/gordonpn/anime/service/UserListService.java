@@ -62,7 +62,7 @@ public class UserListService {
                     .getBody();
 
             if (body == null || body.trim().startsWith("<")) {
-                throw new MalResourceNotFoundException("MAL API returned an HTML page (likely a 404 or rate-limit) instead of a JSON payload.");
+                throw new RuntimeException("MAL API returned an HTML page (likely a rate-limit or captcha challenge) instead of a JSON payload.");
             }
 
             AnimeList animeList = objectMapper.readValue(body, AnimeList.class);
@@ -76,6 +76,9 @@ public class UserListService {
             genericCacheRepository.save(cacheEntry);
 
             return animeList;
+        } catch (org.springframework.web.client.HttpClientErrorException.NotFound e) {
+            log.error("User {} not found on MyAnimeList (404 Not Found): {}", userName, e.getMessage());
+            throw new MalResourceNotFoundException("User " + userName + " not found on MyAnimeList", e);
         } catch (Exception e) {
             log.error("Failed to fetch or parse user list key {} from MAL: {}", cacheKey, e.getMessage());
             if (cachedOpt.isPresent()) {
