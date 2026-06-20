@@ -49,7 +49,7 @@ public class AnimeServiceTests {
 
     @BeforeEach
     public void setUp() {
-        animeService = new AnimeService(objectMapper, apiKeyClient, animeCacheRepository, genericCacheRepository);
+        animeService = new AnimeService(objectMapper, apiKeyClient, animeCacheRepository, genericCacheRepository, 3, 50, 1.5);
     }
 
     @Test
