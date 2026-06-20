@@ -74,7 +74,7 @@ public class UserListService {
                                     .build(userName);
 
                             return org.springframework.web.util.UriComponentsBuilder.fromUri(uri)
-                                    .queryParam("fields", "list_status%7Bscore%7D,alternative_titles")
+                                    .queryParam("fields", "list_status%7Bscore%2Cupdated_at%7D,alternative_titles")
                                     .build(true)
                                     .toUri();
                         })
