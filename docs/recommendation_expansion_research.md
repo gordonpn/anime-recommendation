@@ -90,11 +90,30 @@ Looking at the MyAnimeList API v2 specs, we can leverage additional fields in ou
 
 ## 4. Additional Feature Ideas
 
-### A. Temporal Recommendation Decay
+### A. Temporal Recommendation Decay (Completion Date)
 * **Concept:** Recent shows in the user's completed list should influence recommendations more heavily than older shows, since taste evolves over time.
+* **Focus:** Weighs by **when the user watched** a show, not when it was released.
+* **Motivation:** User taste shifts over time; shows watched recently reflect current preferences better than shows watched years ago.
 * **Implementation:** Assign decay weights based on completion date; older shows have less influence on the recommendation signal.
+* **Formula:** `Signal Weight = Base Signal × exp(-λ × (Days Since Completion))` where λ controls decay rate.
 * **CLI Command:** `recommendation --decay-months 12` (only consider shows completed in the last year).
-* **Educational Value:** Time-series weighting and exponential decay modeling.
+* **Educational Value:** Time-series weighting, exponential decay modeling, and preference evolution.
+
+### A.1. Recency Weighting for Release Dates (Freshness Boost)
+* **Concept:** Recently **released** shows should rank higher in recommendations, independent of when the user watched related content.
+* **Focus:** Weighs by **when a candidate show was released**, not when the user watched something.
+* **Motivation:** Newer anime often have better production quality, reflect current cultural trends, and allow participation in real-time fandom discussions.
+* **Implementation:** Boost the score of candidate recommendations based on their release date; older shows gradually decrease in relative ranking.
+* **Formula:** `Release Boost = exp(-μ × (Years Since Release))` where μ controls the decay; typically μ ≈ 0.1–0.3 to provide a moderate boost.
+* **CLI Command:** `recommendation --freshness-boost 0.5` (moderate boost for newer releases) or `--freshness-boost 0` (disable, recommend by relevance only).
+* **Example:** Two equally-relevant shows, one from 2024 and one from 2015, will rank the 2024 show higher when freshness boost is enabled.
+* **Educational Value:** Balancing relevance vs. discovery, temporal popularity signals, and content aging in ranking systems.
+
+### A.2. Hybrid Temporal Weighting
+* **Concept:** Combine completion decay and release freshness to model both user taste evolution and content novelty.
+* **Combined Formula:** 
+  $$\text{Final Score} = \text{Base Relevance Score} \times \underbrace{\exp(-\lambda \times \text{Days Since User Completion})}_{\text{Taste Decay}} \times \underbrace{\exp(-\mu \times \text{Years Since Release})}_{\text{Freshness Boost}}$$
+* **Behavior:** Recommendations will favor shows that are (1) recently completed by the user and (2) recently released, with independent control over each factor.
 
 ### B. Diversity Threshold
 * **Concept:** Recommendations can become homogeneous if heavily weighted toward a single franchise or studio. Enforce variety constraints.
