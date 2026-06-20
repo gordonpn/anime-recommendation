@@ -32,7 +32,7 @@ public class BackgroundFetchService {
     private final SyncStatusRepository syncStatusRepository;
 
     @Scheduled(fixedDelay = ONE_HOUR_IN_MILLIS)
-    public void fetchList() throws JsonProcessingException {
+    public void fetchList() {
         TokenResponse tokenResponse = authorizationState.getTokenResponse();
         if (tokenResponse == null) {
             log.warn("No active authorization token found. Skipping synchronization. Please run 'login' to authenticate.");

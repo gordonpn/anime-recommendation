@@ -37,7 +37,7 @@ public class RecommendationService {
     private final RestClient apiKeyClient;
     private final RecommendationFacade recommendationFacade;
 
-    public Map<String, Integer> recommendationOccurrence(String userName) throws JsonProcessingException {
+    public Map<String, Integer> recommendationOccurrence(String userName) {
         List<RecommendationDetailedResult> results = recommendationFacade.getRecommendations(userName, 50);
         Map<String, Integer> legacyMap = new LinkedHashMap<>();
         for (RecommendationDetailedResult res : results) {
@@ -46,7 +46,7 @@ public class RecommendationService {
         return legacyMap;
     }
 
-    public AnimeList getSuggestions() throws JsonProcessingException {
+    public AnimeList getSuggestions() {
         var body = apiKeyClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/anime/suggestions")
@@ -58,6 +58,10 @@ public class RecommendationService {
 
         log.debug("Suggestions response: {}", body);
 
-        return objectMapper.readValue(body, AnimeList.class);
+        try {
+            return objectMapper.readValue(body, AnimeList.class);
+        } catch (JsonProcessingException e) {
+            throw new com.gordonpn.anime.models.AnimeDataProcessingException("Failed to parse suggestions JSON", e);
+        }
     }
 }

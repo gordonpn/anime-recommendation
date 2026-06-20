@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gordonpn.anime.entity.AnimeCacheEntity;
 import com.gordonpn.anime.entity.GenericCacheEntity;
+import com.gordonpn.anime.models.AnimeDataProcessingException;
 import com.gordonpn.anime.models.AnimeDetails;
 import com.gordonpn.anime.models.MalResourceNotFoundException;
 import com.gordonpn.anime.models.SeasonalAnime;
@@ -50,13 +51,13 @@ public class AnimeService {
         this.backoffMultiplier = backoffMultiplier;
     }
 
-    public AnimeDetails getAnimeById(int animeId) throws JsonProcessingException {
+    public AnimeDetails getAnimeById(int animeId) {
         Optional<AnimeCacheEntity> cachedOpt = animeCacheRepository.findById(animeId);
         if (cachedOpt.isPresent()) {
             AnimeCacheEntity cached = cachedOpt.get();
             if (cached.getCachedAt().isAfter(LocalDateTime.now().minusDays(7))) {
                 log.debug("Cache hit for anime ID: {}", animeId);
-                return objectMapper.readValue(cached.getDetailsJson(), AnimeDetails.class);
+                return parseJson(cached.getDetailsJson(), AnimeDetails.class);
             }
             log.info("Cache expired for anime ID: {}", animeId);
         }
@@ -79,7 +80,7 @@ public class AnimeService {
                     throw new RuntimeException("MAL API returned an HTML page (likely a rate-limit or captcha challenge) instead of a JSON payload.");
                 }
 
-                AnimeDetails animeDetails = objectMapper.readValue(body, AnimeDetails.class);
+                AnimeDetails animeDetails = parseJson(body, AnimeDetails.class);
                 log.info("Anime details fetched: {}", animeDetails.getDisplayTitle());
 
                 // Save/Update to cache on success
@@ -112,7 +113,7 @@ public class AnimeService {
                     if (cachedOpt.isPresent()) {
                         log.warn("Falling back to expired cache for anime ID: {}", animeId);
                         try {
-                            return objectMapper.readValue(cachedOpt.get().getDetailsJson(), AnimeDetails.class);
+                            return parseJson(cachedOpt.get().getDetailsJson(), AnimeDetails.class);
                         } catch (Exception ex) {
                             log.error("Failed to parse expired cache for anime ID {}: {}", animeId, ex.getMessage());
                         }
@@ -124,7 +125,7 @@ public class AnimeService {
         throw new RuntimeException("Retry limit exceeded for anime ID: " + animeId);
     }
 
-    public SeasonalAnime getSeasonalAnime(String season, int year) throws JsonProcessingException {
+    public SeasonalAnime getSeasonalAnime(String season, int year) {
         String cacheKey = "seasonal:" + year + ":" + season;
         Optional<GenericCacheEntity> cachedOpt = genericCacheRepository.findById(cacheKey);
 
@@ -136,7 +137,7 @@ public class AnimeService {
             GenericCacheEntity cached = cachedOpt.get();
             if (cached.getCachedAt().isAfter(LocalDateTime.now().minusDays(ttlDays))) {
                 log.debug("Cache hit for seasonal anime key: {}", cacheKey);
-                return objectMapper.readValue(cached.getCacheValue(), SeasonalAnime.class);
+                return parseJson(cached.getCacheValue(), SeasonalAnime.class);
             }
             log.info("Cache expired for seasonal anime key: {}", cacheKey);
         }
@@ -161,7 +162,7 @@ public class AnimeService {
                     throw new RuntimeException("MAL API returned an HTML page (likely a rate-limit or captcha challenge) instead of a JSON payload.");
                 }
 
-                SeasonalAnime seasonalAnime = objectMapper.readValue(body, SeasonalAnime.class);
+                SeasonalAnime seasonalAnime = parseJson(body, SeasonalAnime.class);
                 log.debug("Seasonal anime fetched from MAL API and parsed successfully");
 
                 // Save/Update to cache on success
@@ -193,7 +194,7 @@ public class AnimeService {
                     if (cachedOpt.isPresent()) {
                         log.warn("Falling back to expired cache for seasonal anime key: {}", cacheKey);
                         try {
-                            return objectMapper.readValue(cachedOpt.get().getCacheValue(), SeasonalAnime.class);
+                            return parseJson(cachedOpt.get().getCacheValue(), SeasonalAnime.class);
                         } catch (Exception ex) {
                             log.error("Failed to parse expired cache for seasonal anime key {}: {}", cacheKey, ex.getMessage());
                         }
@@ -203,5 +204,13 @@ public class AnimeService {
             }
         }
         throw new RuntimeException("Retry limit exceeded for seasonal anime key: " + cacheKey);
+    }
+
+    private <T> T parseJson(String json, Class<T> clazz) {
+        try {
+            return objectMapper.readValue(json, clazz);
+        } catch (JsonProcessingException e) {
+            throw new AnimeDataProcessingException("Failed to parse JSON for " + clazz.getSimpleName(), e);
+        }
     }
 }

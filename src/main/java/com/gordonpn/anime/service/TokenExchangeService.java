@@ -29,7 +29,7 @@ public class TokenExchangeService {
     @Value("${mal.redirect.uri}")
     private String redirectUri;
 
-    public TokenResponse exchangeCode(String authCode, String codeVerifier) throws JsonProcessingException {
+    public TokenResponse exchangeCode(String authCode, String codeVerifier) {
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
         formData.add("client_id", clientId);
         formData.add("client_secret", clientSecret);
@@ -46,10 +46,14 @@ public class TokenExchangeService {
                 .toEntity(String.class)
                 .getBody();
 
-        return objectMapper.readValue(body, TokenResponse.class);
+        try {
+            return objectMapper.readValue(body, TokenResponse.class);
+        } catch (JsonProcessingException e) {
+            throw new com.gordonpn.anime.models.AnimeDataProcessingException("Failed to parse exchange token JSON", e);
+        }
     }
 
-    public TokenResponse refreshToken(TokenResponse tokenResponse) throws JsonProcessingException {
+    public TokenResponse refreshToken(TokenResponse tokenResponse) {
         if (tokenResponse == null) {
             log.info("No token to refresh");
             return null;
@@ -82,6 +86,10 @@ public class TokenExchangeService {
                 .toEntity(String.class)
                 .getBody();
 
-        return objectMapper.readValue(body, TokenResponse.class);
+        try {
+            return objectMapper.readValue(body, TokenResponse.class);
+        } catch (JsonProcessingException e) {
+            throw new com.gordonpn.anime.models.AnimeDataProcessingException("Failed to parse refresh token JSON", e);
+        }
     }
 }

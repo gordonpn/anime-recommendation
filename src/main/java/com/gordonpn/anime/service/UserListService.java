@@ -3,6 +3,7 @@ package com.gordonpn.anime.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gordonpn.anime.entity.GenericCacheEntity;
+import com.gordonpn.anime.models.AnimeDataProcessingException;
 import com.gordonpn.anime.models.AnimeList;
 import com.gordonpn.anime.models.MalResourceNotFoundException;
 import com.gordonpn.anime.models.userlist.Status;
@@ -47,7 +48,7 @@ public class UserListService {
         this.backoffMultiplier = backoffMultiplier;
     }
 
-    public AnimeList getListByUserName(String userName, Status status) throws JsonProcessingException {
+    public AnimeList getListByUserName(String userName, Status status) {
         String cacheKey = "userlist:" + userName + ":" + status.getType();
         Optional<GenericCacheEntity> cachedOpt = genericCacheRepository.findById(cacheKey);
 
@@ -55,7 +56,7 @@ public class UserListService {
             GenericCacheEntity cached = cachedOpt.get();
             if (cached.getCachedAt().isAfter(LocalDateTime.now().minusDays(1))) {
                 log.debug("Cache hit for user list key: {}", cacheKey);
-                return objectMapper.readValue(cached.getCacheValue(), AnimeList.class);
+                return parseJson(cached.getCacheValue(), AnimeList.class);
             }
             log.info("Cache expired for user list key: {}", cacheKey);
         }
@@ -86,7 +87,7 @@ public class UserListService {
                     throw new RuntimeException("MAL API returned an HTML page (likely a rate-limit or captcha challenge) instead of a JSON payload.");
                 }
 
-                AnimeList animeList = objectMapper.readValue(body, AnimeList.class);
+                AnimeList animeList = parseJson(body, AnimeList.class);
                 log.debug("User list fetched from MAL API and parsed successfully");
 
                 // Save/Update to cache
@@ -118,7 +119,7 @@ public class UserListService {
                     if (cachedOpt.isPresent()) {
                         log.warn("Falling back to expired cache for user list key: {}", cacheKey);
                         try {
-                            return objectMapper.readValue(cachedOpt.get().getCacheValue(), AnimeList.class);
+                            return parseJson(cachedOpt.get().getCacheValue(), AnimeList.class);
                         } catch (Exception ex) {
                             log.error("Failed to parse expired cache for user list key {}: {}", cacheKey, ex.getMessage());
                         }
@@ -128,5 +129,13 @@ public class UserListService {
             }
         }
         throw new RuntimeException("Retry limit exceeded for user list: " + userName);
+    }
+
+    private <T> T parseJson(String json, Class<T> clazz) {
+        try {
+            return objectMapper.readValue(json, clazz);
+        } catch (JsonProcessingException e) {
+            throw new AnimeDataProcessingException("Failed to parse JSON for " + clazz.getSimpleName(), e);
+        }
     }
 }
