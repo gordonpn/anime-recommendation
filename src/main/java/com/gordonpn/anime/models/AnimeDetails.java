@@ -116,4 +116,15 @@ public class AnimeDetails {
         }
         return title;
     }
+
+    public Integer getStartYear() {
+        if (startDate == null || startDate.length() < 4) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(startDate.substring(0, 4));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
 }

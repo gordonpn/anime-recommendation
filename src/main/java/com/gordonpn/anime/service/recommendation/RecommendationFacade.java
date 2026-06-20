@@ -30,6 +30,10 @@ public class RecommendationFacade {
     private final ExplanationService explanationService;
 
     public List<RecommendationDetailedResult> getRecommendations(String userName, int limit) throws JsonProcessingException {
+        return getRecommendations(userName, limit, null, null);
+    }
+
+    public List<RecommendationDetailedResult> getRecommendations(String userName, int limit, Integer minYear, Integer maxYear) throws JsonProcessingException {
         List<Integer> completedIds = new ArrayList<>();
         Map<Integer, String> completedIdToTitleMap = new HashMap<>();
         Map<Integer, Integer> completedIdToUserScoreMap = new HashMap<>();
@@ -240,6 +244,21 @@ public class RecommendationFacade {
         for (Integer candidateId : topCandidateIds) {
             try {
                 AnimeDetails details = animeService.getAnimeById(candidateId);
+
+                // Filter by release era if minYear or maxYear is specified
+                if (minYear != null || maxYear != null) {
+                    Integer startYear = details.getStartYear();
+                    if (startYear == null) {
+                        continue; // Skip if year is unknown but range filter is active
+                    }
+                    if (minYear != null && startYear < minYear) {
+                        continue;
+                    }
+                    if (maxYear != null && startYear > maxYear) {
+                        continue;
+                    }
+                }
+
                 double occurrence = recOccurrenceMap.getOrDefault(candidateId, 0.0);
                 
                 // Calculate average candidate rating across its franchise seasons/OVAs/etc.

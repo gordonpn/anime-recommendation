@@ -53,13 +53,17 @@ public class RecommendationCommands {
     public String recommendation(
             @ShellOption(defaultValue = ShellOption.NULL, help = "The MyAnimeList username, or '@me' to use the local SQLite database") String userName,
             @ShellOption(defaultValue = ShellOption.NULL, help = "Output the recommendations in JSON format") Boolean json,
-            @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum number of recommendations to return") Integer limit) throws JsonProcessingException {
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum number of recommendations to return") Integer limit,
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Minimum release year filter") Integer minYear,
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum release year filter") Integer maxYear) throws JsonProcessingException {
         
         String finalUserName = userName != null ? userName : promptString("Enter MyAnimeList username", "@me");
         boolean finalJson = json != null ? json : promptBoolean("Output in JSON format?", false);
         int finalLimit = limit != null ? limit : promptInt("Enter maximum number of recommendations to return", 10);
+        Integer finalMinYear = minYear != null ? minYear : promptOptionalInt("Enter minimum release year (optional, leave blank for none)", null);
+        Integer finalMaxYear = maxYear != null ? maxYear : promptOptionalInt("Enter maximum release year (optional, leave blank for none)", null);
 
-        List<RecommendationDetailedResult> recommendations = recommendationFacade.getRecommendations(finalUserName, finalLimit);
+        List<RecommendationDetailedResult> recommendations = recommendationFacade.getRecommendations(finalUserName, finalLimit, finalMinYear, finalMaxYear);
         
         if (finalJson) {
             return objectMapper.writeValueAsString(recommendations);
@@ -349,6 +353,20 @@ public class RecommendationCommands {
             return Integer.parseInt(response);
         } catch (NumberFormatException e) {
             System.out.println("Invalid number format. Using default: " + defaultValue);
+            return defaultValue;
+        }
+    }
+
+    private Integer promptOptionalInt(String promptText, Integer defaultValue) {
+        String defaultStr = defaultValue != null ? String.valueOf(defaultValue) : "";
+        String response = promptString(promptText, defaultStr);
+        if (response.isEmpty()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(response);
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid number format. Using default: " + (defaultValue != null ? defaultValue : "none"));
             return defaultValue;
         }
     }

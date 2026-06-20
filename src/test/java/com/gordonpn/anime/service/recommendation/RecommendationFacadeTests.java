@@ -194,4 +194,81 @@ public class RecommendationFacadeTests {
         assertEquals(4.5714, results.get(0).getOccurrence(), 0.01); // weighted occurrences: 4 * (8.0 / 7.0) = 4.5714
         assertEquals(12.0, results.get(0).getScore());
     }
+
+    @Test
+    public void testYearFiltering() throws Exception {
+        // Setup a completed show: 101
+        UserAnimeListEntity completedEntity = new UserAnimeListEntity();
+        completedEntity.setAnimeId(101);
+        completedEntity.setStatus(ListStatusType.COMPLETED);
+
+        when(userAnimeListRepository.findByStatus(ListStatusType.COMPLETED))
+                .thenReturn(List.of(completedEntity));
+        when(userAnimeListRepository.findByStatus(ListStatusType.DROPPED))
+                .thenReturn(Collections.emptyList());
+
+        AnimeDetails completedDetails = new AnimeDetails();
+        completedDetails.setId(101);
+        
+        // 101 has 3 recommendations: 201, 202, 203
+        Recommendation rec1 = new Recommendation();
+        rec1.setNumRecommendations(1);
+        Node n1 = new Node();
+        n1.setId(201);
+        rec1.setNode(n1);
+
+        Recommendation rec2 = new Recommendation();
+        rec2.setNumRecommendations(1);
+        Node n2 = new Node();
+        n2.setId(202);
+        rec2.setNode(n2);
+
+        Recommendation rec3 = new Recommendation();
+        rec3.setNumRecommendations(1);
+        Node n3 = new Node();
+        n3.setId(203);
+        rec3.setNode(n3);
+
+        completedDetails.setRecommendations(List.of(rec1, rec2, rec3));
+        when(animeService.getAnimeById(101)).thenReturn(completedDetails);
+
+        // Mock shouldInclude
+        when(filteringService.shouldInclude(eq(201), anySet(), anySet())).thenReturn(true);
+        when(filteringService.shouldInclude(eq(202), anySet(), anySet())).thenReturn(true);
+        when(filteringService.shouldInclude(eq(203), anySet(), anySet())).thenReturn(true);
+
+        // Mock details lookups:
+        // 201: year 1999 (too old)
+        AnimeDetails d1 = new AnimeDetails();
+        d1.setId(201);
+        d1.setStartDate("1999-04-01");
+        
+        // 202: year 2005 (in range)
+        AnimeDetails d2 = new AnimeDetails();
+        d2.setId(202);
+        d2.setTitle("Good Retro Show");
+        d2.setStartDate("2005-10-06");
+        d2.setMean(8.0);
+        d2.setPopularity(200);
+
+        // 203: year 2010 (too new)
+        AnimeDetails d3 = new AnimeDetails();
+        d3.setId(203);
+        d3.setStartDate("2010-01-08");
+
+        when(animeService.getAnimeById(201)).thenReturn(d1);
+        when(animeService.getAnimeById(202)).thenReturn(d2);
+        when(animeService.getAnimeById(203)).thenReturn(d3);
+
+        // Mock ranking & explanation for 202 (which is the only one in range)
+        when(rankingService.calculateScore(anyDouble(), any(), any())).thenReturn(8.0);
+        when(explanationService.generateExplanation(anyDouble(), anyList())).thenReturn("Explained!");
+
+        // Execute with minYear=2000, maxYear=2006
+        List<RecommendationDetailedResult> results = recommendationFacade.getRecommendations("@me", 10, 2000, 2006);
+
+        assertNotNull(results);
+        assertEquals(1, results.size());
+        assertEquals("Good Retro Show", results.get(0).getTitle());
+    }
 }

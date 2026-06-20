@@ -46,7 +46,7 @@ public class AnimeService {
             String body = apiKeyClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/anime/{animeId}")
-                            .queryParam("fields", "id,title,recommendations,mean,popularity,related_anime,alternative_titles")
+                            .queryParam("fields", "id,title,recommendations,mean,popularity,related_anime,alternative_titles,start_date")
                             .build(animeId))
                     .retrieve()
                     .toEntity(String.class)

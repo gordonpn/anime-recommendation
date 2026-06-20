@@ -128,18 +128,21 @@ public class RecommendationCommandsTests {
         );
 
         when(lineReaderProviderMock.getIfAvailable()).thenReturn(lineReaderMock);
-        // Returns empty username (defaults to @me), "y" for JSON (maps to true), "5" for limit
+        // Returns empty username (defaults to @me), "y" for JSON (maps to true), "5" for limit,
+        // and empty strings for optional min/max years (defaults to null)
         when(lineReaderMock.readLine(anyString()))
                 .thenReturn("")
                 .thenReturn("y")
-                .thenReturn("5");
+                .thenReturn("5")
+                .thenReturn("")
+                .thenReturn("");
 
         List<RecommendationDetailedResult> recs = List.of(
                 RecommendationDetailedResult.builder().id(12).title("Test").score(10.0).build()
         );
-        when(recommendationFacade.getRecommendations("@me", 5)).thenReturn(recs);
+        when(recommendationFacade.getRecommendations("@me", 5, null, null)).thenReturn(recs);
 
-        String result = recommendationCommands.recommendation(null, null, null);
+        String result = recommendationCommands.recommendation(null, null, null, null, null);
 
         assertNotNull(result);
         assertTrue(result.contains("\"id\":12"));
