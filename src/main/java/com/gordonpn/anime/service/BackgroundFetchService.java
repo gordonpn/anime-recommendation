@@ -68,6 +68,14 @@ public class BackgroundFetchService {
                 entity.setStatus(listStatusType);
                 if (datum.getListStatus() != null) {
                     entity.setUserScore(datum.getListStatus().getScore());
+                    String updatedAtStr = datum.getListStatus().getUpdatedAt();
+                    if (updatedAtStr != null && !updatedAtStr.isEmpty()) {
+                        try {
+                            entity.setUpdatedAt(java.time.OffsetDateTime.parse(updatedAtStr).toLocalDateTime());
+                        } catch (Exception e) {
+                            log.warn("Failed to parse updatedAt string '{}' for anime ID {}: {}", updatedAtStr, animeId, e.getMessage());
+                        }
+                    }
                 }
 
                 userAnimeListRepository.save(entity);
