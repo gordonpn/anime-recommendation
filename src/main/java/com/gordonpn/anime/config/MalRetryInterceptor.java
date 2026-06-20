@@ -25,8 +25,9 @@ public class MalRetryInterceptor implements ClientHttpRequestInterceptor {
     @Override
     public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
         long backoffMs = initialBackoffMs;
+        boolean infinite = maxAttempts <= 0;
 
-        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+        for (int attempt = 1; infinite || attempt <= maxAttempts; attempt++) {
             try {
                 ClientHttpResponse response = execution.execute(request, body);
                 HttpStatusCode status = response.getStatusCode();
@@ -38,22 +39,24 @@ public class MalRetryInterceptor implements ClientHttpRequestInterceptor {
                     }
 
                     // For transient errors (e.g., 429, 5xx), retry if attempts remain
-                    if (attempt < maxAttempts && (status.value() == 429 || status.is5xxServerError())) {
+                    boolean shouldRetry = infinite || (attempt < maxAttempts);
+                    if (shouldRetry && (status.value() == 429 || status.is5xxServerError())) {
                         log.warn("Transient HTTP error {} on attempt {} for URI: {}. Retrying in {}ms...",
                                 status.value(), attempt, request.getURI(), backoffMs);
                         response.close(); // Clean up response resources
                         sleep(backoffMs);
-                        backoffMs = (long) (backoffMs * backoffMultiplier);
+                        backoffMs = Math.min(15000L, (long) (backoffMs * backoffMultiplier));
                         continue;
                     }
                 }
                 return response;
             } catch (IOException e) {
-                if (attempt < maxAttempts) {
+                boolean shouldRetry = infinite || (attempt < maxAttempts);
+                if (shouldRetry) {
                     log.warn("IOException on attempt {} for URI: {} - {}. Retrying in {}ms...",
                             attempt, request.getURI(), e.getMessage(), backoffMs);
                     sleep(backoffMs);
-                    backoffMs = (long) (backoffMs * backoffMultiplier);
+                    backoffMs = Math.min(15000L, (long) (backoffMs * backoffMultiplier));
                 } else {
                     throw e;
                 }
