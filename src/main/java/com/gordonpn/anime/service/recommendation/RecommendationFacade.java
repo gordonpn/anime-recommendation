@@ -104,6 +104,7 @@ public class RecommendationFacade {
                 log.warn("Completed anime ID {} not found on MyAnimeList: {}", completedId, e.getMessage());
             } catch (Exception e) {
                 log.error("Failed to fetch details/relations for completed anime ID: {}", completedId, e);
+                throw e;
             }
         }
 
@@ -280,6 +281,7 @@ public class RecommendationFacade {
                 log.warn("Candidate anime ID {} not found on MyAnimeList, skipping: {}", candidateId, e.getMessage());
             } catch (Exception e) {
                 log.error("Failed to rank candidate ID: {}", candidateId, e);
+                throw e;
             }
         }
 
@@ -290,7 +292,7 @@ public class RecommendationFacade {
                 .collect(Collectors.toList());
     }
 
-    private Double calculateOverallFranchiseRating(AnimeDetails candidateDetails) {
+    private Double calculateOverallFranchiseRating(AnimeDetails candidateDetails) throws JsonProcessingException {
         if (candidateDetails == null) {
             return null;
         }
@@ -333,8 +335,11 @@ public class RecommendationFacade {
                         ratings.add(relDetails.getMean());
                     }
                     lookupCount++;
+                } catch (MalResourceNotFoundException e) {
+                    log.warn("Failed to find related anime ID {} on MyAnimeList for franchise rating calculation: {}", rel.getNode().getId(), e.getMessage());
                 } catch (Exception e) {
-                    log.warn("Failed to fetch related anime ID {} for franchise rating calculation: {}", rel.getNode().getId(), e.getMessage());
+                    log.error("Failed to fetch related anime ID {} for franchise rating calculation: {}", rel.getNode().getId(), e.getMessage(), e);
+                    throw e;
                 }
             }
         }
