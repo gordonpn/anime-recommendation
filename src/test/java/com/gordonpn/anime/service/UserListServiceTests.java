@@ -45,7 +45,7 @@ public class UserListServiceTests {
 
     @BeforeEach
     public void setUp() {
-        userListService = new UserListService(objectMapper, apiKeyClient, genericCacheRepository);
+        userListService = new UserListService(objectMapper, apiKeyClient, genericCacheRepository, 3, 50, 1.5);
     }
 
     @Test
