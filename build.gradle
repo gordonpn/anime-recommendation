@@ -30,7 +30,7 @@ ext {
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
-    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework:spring-web'
     implementation 'org.springframework.shell:spring-shell-starter'
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.xerial:sqlite-jdbc'

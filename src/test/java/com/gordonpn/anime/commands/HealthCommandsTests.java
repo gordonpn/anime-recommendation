@@ -25,7 +25,6 @@ public class HealthCommandsTests {
     @BeforeEach
     public void setUp() {
         healthCommands = new HealthCommands(tokenRepository);
-        ReflectionTestUtils.setField(healthCommands, "appMode", "cli");
         ReflectionTestUtils.setField(healthCommands, "dbUrl", "jdbc:sqlite:test.db");
     }
 

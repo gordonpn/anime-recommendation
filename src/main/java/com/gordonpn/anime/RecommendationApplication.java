@@ -10,8 +10,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
 
 @SpringBootApplication
 @EnableScheduling
@@ -21,48 +19,12 @@ public class RecommendationApplication {
         loadDotEnv();
         validateCredentials();
 
-        String mode = getAppMode();
-        System.setProperty("app.mode", mode);
-
         SpringApplication app = new SpringApplication(RecommendationApplication.class);
-
-        if ("cli".equalsIgnoreCase(mode)) {
-            app.setWebApplicationType(WebApplicationType.NONE);
-            System.setProperty("spring.shell.interactive.enabled", "true");
-        } else if ("api".equalsIgnoreCase(mode)) {
-            app.setWebApplicationType(WebApplicationType.SERVLET);
-            System.setProperty("spring.shell.interactive.enabled", "false");
-            System.setProperty("spring.autoconfigure.exclude",
-                    "org.springframework.shell.boot.SpringShellAutoConfiguration," +
-                    "org.springframework.shell.boot.JLineShellAutoConfiguration," +
-                    "org.springframework.shell.boot.JLineAutoConfiguration," +
-                    "org.springframework.shell.boot.CommandCatalogAutoConfiguration," +
-                    "org.springframework.shell.boot.ShellContextAutoConfiguration," +
-                    "org.springframework.shell.boot.ShellRunnerAutoConfiguration," +
-                    "org.springframework.shell.boot.LineReaderAutoConfiguration," +
-                    "org.springframework.shell.boot.StandardAPIAutoConfiguration," +
-                    "org.springframework.shell.boot.StandardCommandsAutoConfiguration," +
-                    "org.springframework.shell.boot.ParameterResolverAutoConfiguration," +
-                    "org.springframework.shell.boot.ComponentFlowAutoConfiguration," +
-                    "org.springframework.shell.boot.ApplicationRunnerAutoConfiguration," +
-                    "org.springframework.shell.boot.ThemingAutoConfiguration," +
-                    "org.springframework.shell.boot.TerminalUIAutoConfiguration," +
-                    "org.springframework.shell.boot.ExitCodeAutoConfiguration," +
-                    "org.springframework.shell.boot.CompleterAutoConfiguration," +
-                    "org.springframework.shell.boot.UserConfigAutoConfiguration");
-        } else if ("both".equalsIgnoreCase(mode)) {
-            app.setWebApplicationType(WebApplicationType.SERVLET);
-            System.setProperty("spring.shell.interactive.enabled", "true");
-        } else {
-            throw new IllegalArgumentException("Unknown app.mode: " + mode);
-        }
+        app.setWebApplicationType(WebApplicationType.NONE);
+        System.setProperty("spring.shell.interactive.enabled", "true");
 
         ConfigurableApplicationContext context = app.run(args);
-        if ("cli".equalsIgnoreCase(mode)) {
-            context.close();
-        } else {
-            context.registerShutdownHook();
-        }
+        context.close();
     }
 
     private static void loadDotEnv() {
@@ -104,32 +66,5 @@ public class RecommendationApplication {
                 clientSecret == null || clientSecret.isBlank()) {
             throw new IllegalStateException("FAIL-FAST: Missing required MAL_CLIENT_ID or MAL_CLIENT_SECRET in environment or .env file.");
         }
-    }
-
-    private static String getAppMode() {
-        String mode = System.getProperty("app.mode");
-        if (mode != null && !mode.isBlank()) {
-            return mode.trim();
-        }
-
-        mode = System.getenv("APP_MODE");
-        if (mode != null && !mode.isBlank()) {
-            return mode.trim();
-        }
-
-        try (InputStream input = RecommendationApplication.class.getClassLoader()
-                .getResourceAsStream("application.properties")) {
-            if (input != null) {
-                Properties prop = new Properties();
-                prop.load(input);
-                mode = prop.getProperty("app.mode");
-                if (mode != null && !mode.isBlank()) {
-                    return mode.trim();
-                }
-            }
-        } catch (Exception ignored) {
-        }
-
-        return "cli"; // default
     }
 }

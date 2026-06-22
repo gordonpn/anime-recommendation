@@ -14,9 +14,6 @@ public class HealthCommands {
 
     private final TokenRepository tokenRepository;
 
-    @Value("${app.mode:cli}")
-    private String appMode;
-
     @Value("${spring.datasource.url}")
     private String dbUrl;
 
@@ -24,7 +21,7 @@ public class HealthCommands {
     public String health() {
         StringBuilder sb = new StringBuilder();
         sb.append("=== Recommendation CLI Health Diagnostics ===\n");
-        sb.append(String.format("Runtime Mode: %s\n", appMode));
+        sb.append("Runtime Mode: cli\n");
         sb.append(String.format("Current Time: %s\n", java.time.Instant.now().toString()));
         sb.append("\n");
 
