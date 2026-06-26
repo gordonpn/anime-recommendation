@@ -188,19 +188,12 @@ public class RecommendationCommandsTests {
         var contextMock = org.mockito.Mockito.mock(org.springframework.shell.component.context.ComponentContext.class);
         when(resultMock.getContext()).thenReturn(contextMock);
 
-        when(contextMock.containsKey("userName")).thenReturn(true);
         when(contextMock.get("userName")).thenReturn("@me");
-        when(contextMock.containsKey("json")).thenReturn(true);
         when(contextMock.get("json")).thenReturn("true");
-        when(contextMock.containsKey("limit")).thenReturn(true);
         when(contextMock.get("limit")).thenReturn("5");
-        when(contextMock.containsKey("minYear")).thenReturn(true);
         when(contextMock.get("minYear")).thenReturn("");
-        when(contextMock.containsKey("maxYear")).thenReturn(true);
         when(contextMock.get("maxYear")).thenReturn("");
-        when(contextMock.containsKey("decayMonths")).thenReturn(true);
         when(contextMock.get("decayMonths")).thenReturn("");
-        when(contextMock.containsKey("freshnessBoost")).thenReturn(true);
         when(contextMock.get("freshnessBoost")).thenReturn("");
 
         List<RecommendationDetailedResult> recs = List.of(

@@ -159,14 +159,14 @@ public class RecommendationCommands {
                 var context = flowResult.getContext();
 
                 if (userName == null) {
-                    finalUserName = context.containsKey("userName") ? context.get("userName") : null;
+                    finalUserName = getSafe(context, "userName");
                 }
                 if (json == null) {
-                    String jsonVal = context.containsKey("json") ? context.get("json") : null;
+                    String jsonVal = getSafe(context, "json");
                     finalJson = "true".equalsIgnoreCase(jsonVal);
                 }
                 if (limit == null) {
-                    String limitVal = context.containsKey("limit") ? context.get("limit") : null;
+                    String limitVal = getSafe(context, "limit");
                     try {
                         finalLimit = limitVal != null ? Integer.parseInt(limitVal) : 10;
                     } catch (NumberFormatException e) {
@@ -174,7 +174,7 @@ public class RecommendationCommands {
                     }
                 }
                 if (minYear == null) {
-                    String minYearVal = context.containsKey("minYear") ? context.get("minYear") : null;
+                    String minYearVal = getSafe(context, "minYear");
                     try {
                         finalMinYear = (minYearVal != null && !minYearVal.trim().isEmpty()) ? Integer.parseInt(minYearVal.trim()) : null;
                     } catch (NumberFormatException e) {
@@ -183,7 +183,7 @@ public class RecommendationCommands {
                     }
                 }
                 if (maxYear == null) {
-                    String maxYearVal = context.containsKey("maxYear") ? context.get("maxYear") : null;
+                    String maxYearVal = getSafe(context, "maxYear");
                     try {
                         finalMaxYear = (maxYearVal != null && !maxYearVal.trim().isEmpty()) ? Integer.parseInt(maxYearVal.trim()) : null;
                     } catch (NumberFormatException e) {
@@ -192,7 +192,7 @@ public class RecommendationCommands {
                     }
                 }
                 if (decayMonths == null) {
-                    String decayVal = context.containsKey("decayMonths") ? context.get("decayMonths") : null;
+                    String decayVal = getSafe(context, "decayMonths");
                     try {
                         finalDecayMonths = (decayVal != null && !decayVal.trim().isEmpty()) ? Integer.parseInt(decayVal.trim()) : null;
                     } catch (NumberFormatException e) {
@@ -201,7 +201,7 @@ public class RecommendationCommands {
                     }
                 }
                 if (freshnessBoost == null) {
-                    String freshVal = context.containsKey("freshnessBoost") ? context.get("freshnessBoost") : null;
+                    String freshVal = getSafe(context, "freshnessBoost");
                     try {
                         finalFreshnessBoost = (freshVal != null && !freshVal.trim().isEmpty()) ? Double.parseDouble(freshVal.trim()) : null;
                     } catch (NumberFormatException e) {
@@ -287,14 +287,14 @@ public class RecommendationCommands {
                 var context = flowResult.getContext();
 
                 if (numYears == null) {
-                    finalNumYears = context.containsKey("numYears") ? context.get("numYears") : null;
+                    finalNumYears = getSafe(context, "numYears");
                 }
                 if (json == null) {
-                    String jsonVal = context.containsKey("json") ? context.get("json") : null;
+                    String jsonVal = getSafe(context, "json");
                     finalJson = "true".equalsIgnoreCase(jsonVal);
                 }
                 if (limit == null) {
-                    String limitVal = context.containsKey("limit") ? context.get("limit") : null;
+                    String limitVal = getSafe(context, "limit");
                     try {
                         finalLimit = limitVal != null ? Integer.parseInt(limitVal) : 15;
                     } catch (NumberFormatException e) {
@@ -541,11 +541,11 @@ public class RecommendationCommands {
                 var context = flowResult.getContext();
 
                 if (json == null) {
-                    String jsonVal = context.containsKey("json") ? context.get("json") : null;
+                    String jsonVal = getSafe(context, "json");
                     finalJson = "true".equalsIgnoreCase(jsonVal);
                 }
                 if (limit == null) {
-                    String limitVal = context.containsKey("limit") ? context.get("limit") : null;
+                    String limitVal = getSafe(context, "limit");
                     try {
                         finalLimit = limitVal != null ? Integer.parseInt(limitVal) : 10;
                     } catch (NumberFormatException e) {
@@ -592,7 +592,7 @@ public class RecommendationCommands {
                     .and()
                     .build()
                     .run();
-            finalUserName = flowResult.getContext().containsKey("userName") ? flowResult.getContext().get("userName") : "@me";
+            finalUserName = getSafe(flowResult.getContext(), "userName");
         }
         if (finalUserName == null || finalUserName.trim().isEmpty()) {
             finalUserName = "@me";
@@ -656,6 +656,17 @@ public class RecommendationCommands {
             writer.print("\033[?25h");
             writer.print("\033[?1049l");
             writer.flush();
+        }
+    }
+
+    private String getSafe(org.springframework.shell.component.context.ComponentContext<?> context, String key) {
+        if (context == null) {
+            return null;
+        }
+        try {
+            return context.get(key);
+        } catch (Exception e) {
+            return null;
         }
     }
 }
