@@ -156,6 +156,9 @@ public class RecommendationCommands {
                             if ("custom".equalsIgnoreCase(value)) {
                                 return "decayMonthsCustom";
                             }
+                            if (freshnessBoost == null) {
+                                return "freshnessBoostSelect";
+                            }
                             return null;
                         })
                         .and()
