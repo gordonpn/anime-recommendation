@@ -159,14 +159,14 @@ public class RecommendationCommands {
                 var context = flowResult.getContext();
 
                 if (userName == null) {
-                    finalUserName = context.get("userName");
+                    finalUserName = context.containsKey("userName") ? context.get("userName") : null;
                 }
                 if (json == null) {
-                    String jsonVal = context.get("json");
+                    String jsonVal = context.containsKey("json") ? context.get("json") : null;
                     finalJson = "true".equalsIgnoreCase(jsonVal);
                 }
                 if (limit == null) {
-                    String limitVal = context.get("limit");
+                    String limitVal = context.containsKey("limit") ? context.get("limit") : null;
                     try {
                         finalLimit = limitVal != null ? Integer.parseInt(limitVal) : 10;
                     } catch (NumberFormatException e) {
@@ -174,7 +174,7 @@ public class RecommendationCommands {
                     }
                 }
                 if (minYear == null) {
-                    String minYearVal = context.get("minYear");
+                    String minYearVal = context.containsKey("minYear") ? context.get("minYear") : null;
                     try {
                         finalMinYear = (minYearVal != null && !minYearVal.trim().isEmpty()) ? Integer.parseInt(minYearVal.trim()) : null;
                     } catch (NumberFormatException e) {
@@ -183,7 +183,7 @@ public class RecommendationCommands {
                     }
                 }
                 if (maxYear == null) {
-                    String maxYearVal = context.get("maxYear");
+                    String maxYearVal = context.containsKey("maxYear") ? context.get("maxYear") : null;
                     try {
                         finalMaxYear = (maxYearVal != null && !maxYearVal.trim().isEmpty()) ? Integer.parseInt(maxYearVal.trim()) : null;
                     } catch (NumberFormatException e) {
@@ -192,7 +192,7 @@ public class RecommendationCommands {
                     }
                 }
                 if (decayMonths == null) {
-                    String decayVal = context.get("decayMonths");
+                    String decayVal = context.containsKey("decayMonths") ? context.get("decayMonths") : null;
                     try {
                         finalDecayMonths = (decayVal != null && !decayVal.trim().isEmpty()) ? Integer.parseInt(decayVal.trim()) : null;
                     } catch (NumberFormatException e) {
@@ -201,7 +201,7 @@ public class RecommendationCommands {
                     }
                 }
                 if (freshnessBoost == null) {
-                    String freshVal = context.get("freshnessBoost");
+                    String freshVal = context.containsKey("freshnessBoost") ? context.get("freshnessBoost") : null;
                     try {
                         finalFreshnessBoost = (freshVal != null && !freshVal.trim().isEmpty()) ? Double.parseDouble(freshVal.trim()) : null;
                     } catch (NumberFormatException e) {
@@ -287,14 +287,14 @@ public class RecommendationCommands {
                 var context = flowResult.getContext();
 
                 if (numYears == null) {
-                    finalNumYears = context.get("numYears");
+                    finalNumYears = context.containsKey("numYears") ? context.get("numYears") : null;
                 }
                 if (json == null) {
-                    String jsonVal = context.get("json");
+                    String jsonVal = context.containsKey("json") ? context.get("json") : null;
                     finalJson = "true".equalsIgnoreCase(jsonVal);
                 }
                 if (limit == null) {
-                    String limitVal = context.get("limit");
+                    String limitVal = context.containsKey("limit") ? context.get("limit") : null;
                     try {
                         finalLimit = limitVal != null ? Integer.parseInt(limitVal) : 15;
                     } catch (NumberFormatException e) {
@@ -541,11 +541,11 @@ public class RecommendationCommands {
                 var context = flowResult.getContext();
 
                 if (json == null) {
-                    String jsonVal = context.get("json");
+                    String jsonVal = context.containsKey("json") ? context.get("json") : null;
                     finalJson = "true".equalsIgnoreCase(jsonVal);
                 }
                 if (limit == null) {
-                    String limitVal = context.get("limit");
+                    String limitVal = context.containsKey("limit") ? context.get("limit") : null;
                     try {
                         finalLimit = limitVal != null ? Integer.parseInt(limitVal) : 10;
                     } catch (NumberFormatException e) {
@@ -592,7 +592,7 @@ public class RecommendationCommands {
                     .and()
                     .build()
                     .run();
-            finalUserName = flowResult.getContext().get("userName");
+            finalUserName = flowResult.getContext().containsKey("userName") ? flowResult.getContext().get("userName") : "@me";
         }
         if (finalUserName == null || finalUserName.trim().isEmpty()) {
             finalUserName = "@me";
