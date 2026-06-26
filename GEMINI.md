@@ -75,7 +75,8 @@
 - **Wizard Mechanism:** Replaced manual `LineReader.readLine()` parsing helpers with Spring Shell's native `ComponentFlow.Builder`.
 - **Keyboard Navigation:** Uses `SingleItemSelector` for boolean prompts (JSON format select) and multi-choice limits (e.g., limit selector 5/10/20/50) to provide arrow-key menu selections directly inline.
 - **Gated Flow:** Interactive prompts are dynamically built and executed ONLY for command options that are passed as `null`, ensuring non-interactive scripting pipelines and unit tests run seamlessly without blocking on prompts.
-- **Conditional Multi-Step Flow Routing:** The `freshnessBoost` interactive wizard offers preset options ("None", "Low", "Medium", "High", "Custom") using a `SingleItemSelector` prompt (`freshnessBoostSelect`). If the user selects "Custom", a conditional handler `.next(...)` routes them to a secondary `StringInput` prompt (`freshnessBoostCustom`) to enter a custom decimal rate. Preset selections immediately complete the prompt flow without asking for custom input.
+- **Conditional Multi-Step Flow Routing:** The `freshnessBoost` and `decayMonths` interactive wizards offer layman-friendly preset options ("None", "Low", "Medium", "High", "Custom" for freshness; "None", "Short", "Medium", "Long", "Custom" for taste decay) using a `SingleItemSelector` prompt. If the user selects "Custom", a conditional handler `.next(...)` routes them to a secondary `StringInput` prompt (`freshnessBoostCustom` or `decayMonthsCustom`) to enter custom values. Preset selections immediately complete the prompt flow without asking for custom input.
+
 
 
 ### ComponentFlow.Builder Dependency Integration
