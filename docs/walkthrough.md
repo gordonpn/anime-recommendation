@@ -28,6 +28,8 @@ I have completed the presentation layer refactoring of the anime recommendation 
   - Wrapped MyAnimeList network-bound and database API executions within `try-with-resources` blocks using `TerminalSpinner`.
   - Delegated text grid compilation to the `TableFormatter` service.
   - Hardened context parsing with an exception-guarded helper `getSafe(...)` that handles missing or bypassed optional inputs without throwing `NoSuchElementException`.
+  - Extracted the active `Terminal` instance dynamically and safely via `lineReaderProvider` in a new `getTerminal()` helper method, reverting to the constructor-injected terminal bean as a robust fallback.
+  - Guarded all `TerminalSpinner` executions with a `json` flag check. When JSON output format is requested, the spinner thread execution is bypassed, preventing ANSI escape sequence pollution from corrupting stdout streams.
 
 ### 4. Created Distraction-Free Analytics Dashboard
 - **[RecommendationCommands.java](file:///Users/gordonpn/workspace/anime-recommendation/src/main/java/com/gordonpn/anime/commands/RecommendationCommands.java)**:
