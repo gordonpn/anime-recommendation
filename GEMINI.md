@@ -68,3 +68,24 @@
 ### DTO/Entity Separation & Package Reorganization
 - **Token Entity & DTO Separation:** `TokenResponse` functions as a pure external client response DTO (under package `models.dto`) containing Jackson annotations, decoupled from JPA mapping. `TokenEntity` (under package `entity`) is a dedicated database entity mapped to the SQLite `tokens` table. Services perform explicit mapping when loading/saving credentials, preventing API contract changes from corrupting the database schema.
 - **Model Reorganization:** Relocated target models into specialized packages (`models/dto` and `models/exception`) under `models` to separate concerns cleanly, while keeping raw MyAnimeList response mappings at the root of `models`.
+
+## Interactive CLI & Presentation Layer
+
+### Spring Shell Native ComponentFlow Prompts
+- **Wizard Mechanism:** Replaced manual `LineReader.readLine()` parsing helpers with Spring Shell's native `ComponentFlow.Builder`.
+- **Keyboard Navigation:** Uses `SingleItemSelector` for boolean prompts (JSON format select) and multi-choice limits (e.g., limit selector 5/10/20/50) to provide arrow-key menu selections directly inline.
+- **Gated Flow:** Interactive prompts are dynamically built and executed ONLY for command options that are passed as `null`, ensuring non-interactive scripting pipelines and unit tests run seamlessly without blocking on prompts.
+
+### TableFormatter Presentation Service
+- **Decoupled Layout:** Table layout formatting is moved out of the shell command entry points into `TableFormatter.java` to isolate CLI presentation concerns.
+- **High-Fidelity Unicode Grids:** Renders table frames using unicode box-drawing characters (`│`, `─`, `┼`) with colors configured using JLine 3's `AttributedStringBuilder` and `AttributedStyle`.
+- **Styling Rules:** Muted borders are colored using bright black/grey (`AttributedStyle.BLACK | AttributedStyle.BRIGHT`). Recommendations and entries scoring > 8.0 are highlighted in green and bold (`AttributedStyle.GREEN` / `AttributedStyle.BOLD`) to make outstanding recommendations stand out.
+
+### Asynchronous Status Spinner
+- **Mechanism:** Implemented `TerminalSpinner.java` (implementing `AutoCloseable`) running a background daemon thread that cycles braille frame characters (`⠋`, `⠙`, `⠹`...) at an 80ms interval.
+- **Non-Destructive Cleanup:** Uses escape carriage returns (`\r`) and erase-line instructions (`\033[K`) to update loading status inline. The spinner cleans up after itself upon calling `close()` in `finally` or try-with-resources blocks, avoiding text pollution.
+
+### Distraction-Free Analytics Dashboard
+- **Alternate Buffer View:** The `dashboard` command switches the user out of standard text history into JLine's alternate screen buffer (`\033[?1049h`) and hides the cursor (`\033[?25l`).
+- **Raw Input Event Loop:** Switches the terminal into raw character input mode (`terminal.enterRawMode()`) to register immediate keypresses without waiting for line buffering. Pressing `[r]` triggers live recommendations recalculation, and pressing `[q]` exits raw mode and cleanly returns the user to standard shell scrolling buffers (`\033[?1049l` & `\033[?25h`).
+
