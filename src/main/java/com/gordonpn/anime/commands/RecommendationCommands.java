@@ -148,8 +148,25 @@ public class RecommendationCommands {
                 hasFlow = true;
             }
             if (freshnessBoost == null) {
-                flowBuilder.withStringInput("freshnessBoost")
-                        .name("Enter freshness boost parameter (optional, press Enter for none)")
+                flowBuilder.withSingleItemSelector("freshnessBoostSelect")
+                        .name("Select freshness boost level (release year decay rate)")
+                        .selectItems(List.of(
+                                SelectItem.of("None (no boost)", "0.0"),
+                                SelectItem.of("Low (0.2 - slight preference for newer shows)", "0.2"),
+                                SelectItem.of("Medium (0.5 - standard freshness weight)", "0.5"),
+                                SelectItem.of("High (0.8 - strong preference for new releases)", "0.8"),
+                                SelectItem.of("Custom (enter custom decay rate)", "custom")
+                        ))
+                        .next(context -> {
+                            String value = context.getValue().orElse("0.0");
+                            if ("custom".equalsIgnoreCase(value)) {
+                                return "freshnessBoostCustom";
+                            }
+                            return null;
+                        })
+                        .and()
+                        .withStringInput("freshnessBoostCustom")
+                        .name("Enter custom freshness boost parameter (0.0 to 1.0, press Enter for none)")
                         .and();
                 hasFlow = true;
             }
@@ -201,12 +218,21 @@ public class RecommendationCommands {
                     }
                 }
                 if (freshnessBoost == null) {
-                    String freshVal = getSafe(context, "freshnessBoost");
-                    try {
-                        finalFreshnessBoost = (freshVal != null && !freshVal.trim().isEmpty()) ? Double.parseDouble(freshVal.trim()) : null;
-                    } catch (NumberFormatException e) {
-                        System.out.println("Invalid number format for freshness boost. Ignoring boost.");
-                        finalFreshnessBoost = null;
+                    String selectVal = getSafe(context, "freshnessBoostSelect");
+                    if ("custom".equalsIgnoreCase(selectVal)) {
+                        String customVal = getSafe(context, "freshnessBoostCustom");
+                        try {
+                            finalFreshnessBoost = (customVal != null && !customVal.trim().isEmpty()) ? Double.parseDouble(customVal.trim()) : null;
+                        } catch (NumberFormatException e) {
+                            System.out.println("Invalid number format for freshness boost. Ignoring boost.");
+                            finalFreshnessBoost = null;
+                        }
+                    } else if (selectVal != null && !selectVal.trim().isEmpty()) {
+                        try {
+                            finalFreshnessBoost = Double.parseDouble(selectVal.trim());
+                        } catch (NumberFormatException e) {
+                            finalFreshnessBoost = null;
+                        }
                     }
                 }
             }
