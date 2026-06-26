@@ -81,7 +81,7 @@ public class TableFormatter {
         sb.style(BORDER_STYLE);
         sb.append("─".repeat(5));
         sb.append("┼");
-        sb.append("─".repeat(52));
+        sb.append("─".repeat(53));
         sb.append("┼");
         sb.append("─".repeat(8));
         sb.append("\n");
@@ -124,7 +124,7 @@ public class TableFormatter {
         sb.style(BORDER_STYLE);
         sb.append("─".repeat(5));
         sb.append("┼");
-        sb.append("─".repeat(12));
+        sb.append("─".repeat(13));
         sb.append("┼");
         sb.append("─".repeat(44));
         sb.append("\n");
