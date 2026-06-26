@@ -15,13 +15,19 @@ import com.gordonpn.anime.models.exception.MalResourceNotFoundException;
 import com.gordonpn.anime.models.exception.AnimeDataProcessingException;
 import com.gordonpn.anime.service.AnimeService;
 import com.gordonpn.anime.service.RecommendationService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.shell.standard.ShellComponent;
 import org.springframework.shell.standard.ShellMethod;
 import org.springframework.shell.standard.ShellOption;
+import org.springframework.shell.component.flow.ComponentFlow;
+import org.springframework.shell.component.flow.SelectItem;
+import org.jline.terminal.Terminal;
+import com.gordonpn.anime.service.recommendation.TableFormatter;
+import com.gordonpn.anime.util.TerminalSpinner;
 
+import java.io.PrintWriter;
+import java.io.IOException;
 import java.time.Year;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,7 +45,6 @@ import com.gordonpn.anime.models.dto.RecommendationDetailedResult;
 import com.gordonpn.anime.service.recommendation.RecommendationFacade;
 
 @ShellComponent
-@RequiredArgsConstructor
 @Slf4j
 public class RecommendationCommands {
     @Qualifier("objectMapper")
@@ -49,6 +54,29 @@ public class RecommendationCommands {
     private final AnimeService animeService;
     private final RecommendationFacade recommendationFacade;
     private final ObjectProvider<LineReader> lineReaderProvider;
+    private final ComponentFlow.Builder componentFlowBuilder;
+    private final Terminal terminal;
+    private final TableFormatter tableFormatter;
+
+    public RecommendationCommands(
+            @Qualifier("objectMapper") ObjectMapper objectMapper,
+            RecommendationService recommendationService,
+            AnimeService animeService,
+            RecommendationFacade recommendationFacade,
+            ObjectProvider<LineReader> lineReaderProvider,
+            ComponentFlow.Builder componentFlowBuilder,
+            Terminal terminal,
+            TableFormatter tableFormatter
+    ) {
+        this.objectMapper = objectMapper;
+        this.recommendationService = recommendationService;
+        this.animeService = animeService;
+        this.recommendationFacade = recommendationFacade;
+        this.lineReaderProvider = lineReaderProvider;
+        this.componentFlowBuilder = componentFlowBuilder;
+        this.terminal = terminal;
+        this.tableFormatter = tableFormatter;
+    }
 
     @ShellMethod(key = "recommendation", value = "Generate personalized anime recommendations based on completed shows. Groups series, applies user rating weights, and averages candidate franchise scores.")
     public String recommendation(
@@ -60,15 +88,144 @@ public class RecommendationCommands {
             @ShellOption(defaultValue = ShellOption.NULL, help = "Decay parameter in months for temporal decay weighting (half-life)") Integer decayMonths,
             @ShellOption(defaultValue = ShellOption.NULL, help = "Freshness boost parameter for release date weighting (decay rate)") Double freshnessBoost) {
         
-        String finalUserName = userName != null ? userName : promptString("Enter MyAnimeList username", "@me");
-        boolean finalJson = json != null ? json : promptBoolean("Output in JSON format?", false);
-        int finalLimit = limit != null ? limit : promptInt("Enter maximum number of recommendations to return", 10);
-        Integer finalMinYear = minYear != null ? minYear : promptOptionalInt("Enter minimum release year (optional, leave blank for none)", null);
-        Integer finalMaxYear = maxYear != null ? maxYear : promptOptionalInt("Enter maximum release year (optional, leave blank for none)", null);
-        Integer finalDecayMonths = decayMonths != null ? decayMonths : promptOptionalInt("Enter temporal decay half-life in months (optional, leave blank for none)", null);
-        Double finalFreshnessBoost = freshnessBoost != null ? freshnessBoost : promptOptionalDouble("Enter freshness boost parameter (optional, leave blank for none)", null);
+        String finalUserName = userName;
+        Boolean finalJson = json;
+        Integer finalLimit = limit;
+        Integer finalMinYear = minYear;
+        Integer finalMaxYear = maxYear;
+        Integer finalDecayMonths = decayMonths;
+        Double finalFreshnessBoost = freshnessBoost;
 
-        List<RecommendationDetailedResult> recommendations = recommendationFacade.getRecommendations(finalUserName, finalLimit, finalMinYear, finalMaxYear, finalDecayMonths, finalFreshnessBoost);
+        if (userName == null || json == null || limit == null || minYear == null || maxYear == null || decayMonths == null || freshnessBoost == null) {
+            ComponentFlow.Builder flowBuilder = componentFlowBuilder.clone().reset();
+            boolean hasFlow = false;
+
+            if (userName == null) {
+                flowBuilder.withStringInput("userName")
+                        .name("Enter MyAnimeList username")
+                        .defaultValue("@me")
+                        .and();
+                hasFlow = true;
+            }
+            if (json == null) {
+                flowBuilder.withSingleItemSelector("json")
+                        .name("Output in JSON format?")
+                        .selectItems(List.of(
+                                SelectItem.of("No (standard table)", "false"),
+                                SelectItem.of("Yes (JSON text)", "true")
+                        ))
+                        .and();
+                hasFlow = true;
+            }
+            if (limit == null) {
+                flowBuilder.withSingleItemSelector("limit")
+                        .name("Select maximum number of recommendations")
+                        .selectItems(List.of(
+                                SelectItem.of("5", "5"),
+                                SelectItem.of("10", "10"),
+                                SelectItem.of("20", "20"),
+                                SelectItem.of("50", "50")
+                        ))
+                        .and();
+                hasFlow = true;
+            }
+            if (minYear == null) {
+                flowBuilder.withStringInput("minYear")
+                        .name("Enter minimum release year (optional, press Enter for none)")
+                        .and();
+                hasFlow = true;
+            }
+            if (maxYear == null) {
+                flowBuilder.withStringInput("maxYear")
+                        .name("Enter maximum release year (optional, press Enter for none)")
+                        .and();
+                hasFlow = true;
+            }
+            if (decayMonths == null) {
+                flowBuilder.withStringInput("decayMonths")
+                        .name("Enter temporal decay half-life in months (optional, press Enter for none)")
+                        .and();
+                hasFlow = true;
+            }
+            if (freshnessBoost == null) {
+                flowBuilder.withStringInput("freshnessBoost")
+                        .name("Enter freshness boost parameter (optional, press Enter for none)")
+                        .and();
+                hasFlow = true;
+            }
+
+            if (hasFlow) {
+                var flowResult = flowBuilder.build().run();
+                var context = flowResult.getContext();
+
+                if (userName == null) {
+                    finalUserName = context.get("userName");
+                }
+                if (json == null) {
+                    String jsonVal = context.get("json");
+                    finalJson = "true".equalsIgnoreCase(jsonVal);
+                }
+                if (limit == null) {
+                    String limitVal = context.get("limit");
+                    try {
+                        finalLimit = limitVal != null ? Integer.parseInt(limitVal) : 10;
+                    } catch (NumberFormatException e) {
+                        finalLimit = 10;
+                    }
+                }
+                if (minYear == null) {
+                    String minYearVal = context.get("minYear");
+                    try {
+                        finalMinYear = (minYearVal != null && !minYearVal.trim().isEmpty()) ? Integer.parseInt(minYearVal.trim()) : null;
+                    } catch (NumberFormatException e) {
+                        System.out.println("Invalid number format for minYear. Ignoring filter.");
+                        finalMinYear = null;
+                    }
+                }
+                if (maxYear == null) {
+                    String maxYearVal = context.get("maxYear");
+                    try {
+                        finalMaxYear = (maxYearVal != null && !maxYearVal.trim().isEmpty()) ? Integer.parseInt(maxYearVal.trim()) : null;
+                    } catch (NumberFormatException e) {
+                        System.out.println("Invalid number format for maxYear. Ignoring filter.");
+                        finalMaxYear = null;
+                    }
+                }
+                if (decayMonths == null) {
+                    String decayVal = context.get("decayMonths");
+                    try {
+                        finalDecayMonths = (decayVal != null && !decayVal.trim().isEmpty()) ? Integer.parseInt(decayVal.trim()) : null;
+                    } catch (NumberFormatException e) {
+                        System.out.println("Invalid number format for decay months. Ignoring decay.");
+                        finalDecayMonths = null;
+                    }
+                }
+                if (freshnessBoost == null) {
+                    String freshVal = context.get("freshnessBoost");
+                    try {
+                        finalFreshnessBoost = (freshVal != null && !freshVal.trim().isEmpty()) ? Double.parseDouble(freshVal.trim()) : null;
+                    } catch (NumberFormatException e) {
+                        System.out.println("Invalid number format for freshness boost. Ignoring boost.");
+                        finalFreshnessBoost = null;
+                    }
+                }
+            }
+        }
+
+        if (finalUserName == null) {
+            finalUserName = "@me";
+        }
+        if (finalJson == null) {
+            finalJson = false;
+        }
+        if (finalLimit == null) {
+            finalLimit = 10;
+        }
+
+        List<RecommendationDetailedResult> recommendations;
+        try (TerminalSpinner spinner = new TerminalSpinner(terminal, "Generating recommendations for " + finalUserName + "...")) {
+            recommendations = recommendationFacade.getRecommendations(finalUserName, finalLimit, finalMinYear, finalMaxYear, finalDecayMonths, finalFreshnessBoost);
+        }
         
         if (finalJson) {
             try {
@@ -78,28 +235,7 @@ public class RecommendationCommands {
             }
         }
 
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("\n=== Recommendations for %s ===\n", finalUserName));
-        sb.append(String.format("%-4s | %-40s | %-6s | %-6s | %-6s | %-6s | %s\n", 
-                "Rank", "Title", "Score", "Occur", "Rating", "Pop", "Explanation"));
-        sb.append("-".repeat(110)).append("\n");
-        for (int i = 0; i < recommendations.size(); i++) {
-            RecommendationDetailedResult res = recommendations.get(i);
-            String title = res.getTitle() != null ? res.getTitle() : "Unknown";
-            if (title.length() > 40) {
-                title = title.substring(0, 37) + "...";
-            }
-            sb.append(String.format("%-4d | %-40s | %-6.2f | %-6.1f | %-6.1f | %-6s | %s\n",
-                    i + 1,
-                    title,
-                    res.getScore(),
-                    res.getOccurrence(),
-                    res.getMeanRating() != null ? res.getMeanRating() : 0.0,
-                    res.getPopularity() != null ? String.valueOf(res.getPopularity()) : "N/A",
-                    res.getExplanation()));
-        }
-        sb.append("=============================================\n");
-        return sb.toString();
+        return tableFormatter.formatRecommendations(finalUserName, recommendations);
     }
 
     @ShellMethod(key = "seasonal", value = "Recommend top-rated seasonal anime from past years, grouped by franchise component.")
@@ -108,21 +244,98 @@ public class RecommendationCommands {
             @ShellOption(defaultValue = ShellOption.NULL, help = "Output the seasonal rankings in JSON format") Boolean json,
             @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum number of results to display") Integer limit) {
         
-        String finalNumYears = numYears != null ? numYears : promptString("Enter number of past years of seasonal anime to search", "5");
-        boolean finalJson = json != null ? json : promptBoolean("Output the seasonal rankings in JSON format?", false);
-        int finalLimit = limit != null ? limit : promptInt("Enter maximum number of results to display", 15);
+        String finalNumYears = numYears;
+        Boolean finalJson = json;
+        Integer finalLimit = limit;
+
+        if (numYears == null || json == null || limit == null) {
+            ComponentFlow.Builder flowBuilder = componentFlowBuilder.clone().reset();
+            boolean hasFlow = false;
+
+            if (numYears == null) {
+                flowBuilder.withStringInput("numYears")
+                        .name("Enter number of past years of seasonal anime to search")
+                        .defaultValue("5")
+                        .and();
+                hasFlow = true;
+            }
+            if (json == null) {
+                flowBuilder.withSingleItemSelector("json")
+                        .name("Output the seasonal rankings in JSON format?")
+                        .selectItems(List.of(
+                                SelectItem.of("No (standard table)", "false"),
+                                SelectItem.of("Yes (JSON text)", "true")
+                        ))
+                        .and();
+                hasFlow = true;
+            }
+            if (limit == null) {
+                flowBuilder.withSingleItemSelector("limit")
+                        .name("Enter maximum number of results to display")
+                        .selectItems(List.of(
+                                SelectItem.of("5", "5"),
+                                SelectItem.of("15", "15"),
+                                SelectItem.of("30", "30"),
+                                SelectItem.of("50", "50")
+                        ))
+                        .and();
+                hasFlow = true;
+            }
+
+            if (hasFlow) {
+                var flowResult = flowBuilder.build().run();
+                var context = flowResult.getContext();
+
+                if (numYears == null) {
+                    finalNumYears = context.get("numYears");
+                }
+                if (json == null) {
+                    String jsonVal = context.get("json");
+                    finalJson = "true".equalsIgnoreCase(jsonVal);
+                }
+                if (limit == null) {
+                    String limitVal = context.get("limit");
+                    try {
+                        finalLimit = limitVal != null ? Integer.parseInt(limitVal) : 15;
+                    } catch (NumberFormatException e) {
+                        finalLimit = 15;
+                    }
+                }
+            }
+        }
+
+        if (finalNumYears == null) {
+            finalNumYears = "5";
+        }
+        if (finalJson == null) {
+            finalJson = false;
+        }
+        if (finalLimit == null) {
+            finalLimit = 15;
+        }
 
         var seasons = List.of("winter", "spring", "summer", "fall");
-        var years = Integer.parseInt(finalNumYears);
+        var years = 5;
+        try {
+            years = Integer.parseInt(finalNumYears);
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid number of years format. Using default: 5");
+        }
 
         var allData = new ArrayList<Datum>();
         var currentYear = Year.now().getValue();
-        for (var i = 0; i < years; i++) {
-            for (String season : seasons) {
-                SeasonalAnime seasonalAnime = animeService.getSeasonalAnime(season, currentYear - i);
-                List<Datum> data = seasonalAnime.getData();
-                if (data != null) {
-                    allData.addAll(data);
+
+        final int finalYears = years;
+        final List<Datum> finalAllData = allData;
+
+        try (TerminalSpinner spinner = new TerminalSpinner(terminal, "Fetching seasonal anime lists...")) {
+            for (var i = 0; i < finalYears; i++) {
+                for (String season : seasons) {
+                    SeasonalAnime seasonalAnime = animeService.getSeasonalAnime(season, currentYear - i);
+                    List<Datum> data = seasonalAnime.getData();
+                    if (data != null) {
+                        finalAllData.addAll(data);
+                    }
                 }
             }
         }
@@ -142,30 +355,32 @@ public class RecommendationCommands {
         Map<Integer, Set<Integer>> graph = new HashMap<>();
         Map<Integer, AnimeDetails> detailsMap = new HashMap<>();
 
-        for (Datum datum : topSeasonal) {
-            Integer id = datum.getNode().getId();
-            try {
-                AnimeDetails details = animeService.getAnimeById(id);
-                detailsMap.put(id, details);
+        try (TerminalSpinner spinner = new TerminalSpinner(terminal, "Building relation graph for top seasonal titles...")) {
+            for (Datum datum : topSeasonal) {
+                Integer id = datum.getNode().getId();
+                try {
+                    AnimeDetails details = animeService.getAnimeById(id);
+                    detailsMap.put(id, details);
 
-                graph.putIfAbsent(id, new HashSet<>());
+                    graph.putIfAbsent(id, new HashSet<>());
 
-                List<RelatedAnime> related = details.getRelatedAnime();
-                if (related != null) {
-                    for (RelatedAnime rel : related) {
-                        if (rel.getNode() != null && rel.getNode().getId() != null) {
-                            Integer relId = rel.getNode().getId();
-                            graph.putIfAbsent(relId, new HashSet<>());
-                            graph.get(id).add(relId);
-                            graph.get(relId).add(id);
+                    List<RelatedAnime> related = details.getRelatedAnime();
+                    if (related != null) {
+                        for (RelatedAnime rel : related) {
+                            if (rel.getNode() != null && rel.getNode().getId() != null) {
+                                Integer relId = rel.getNode().getId();
+                                graph.putIfAbsent(relId, new HashSet<>());
+                                graph.get(id).add(relId);
+                                graph.get(relId).add(id);
+                            }
                         }
                     }
+                } catch (MalResourceNotFoundException e) {
+                    log.warn("Seasonal anime ID {} not found on MyAnimeList, skipping: {}", id, e.getMessage());
+                } catch (Exception e) {
+                    log.error("Failed to fetch relations for seasonal anime ID: {}", id, e);
+                    throw e;
                 }
-            } catch (MalResourceNotFoundException e) {
-                log.warn("Seasonal anime ID {} not found on MyAnimeList, skipping: {}", id, e.getMessage());
-            } catch (Exception e) {
-                log.error("Failed to fetch relations for seasonal anime ID: {}", id, e);
-                throw e;
             }
         }
 
@@ -196,72 +411,75 @@ public class RecommendationCommands {
 
         // 4. Consolidate seasonal items belonging to the same component
         List<SeasonalAnimeResult> consolidatedResults = new ArrayList<>();
-        for (Set<Integer> component : components) {
-            List<Integer> componentSeasonalIds = new ArrayList<>();
-            for (Integer id : component) {
-                if (detailsMap.containsKey(id)) {
-                    componentSeasonalIds.add(id);
-                }
-            }
-
-            if (componentSeasonalIds.isEmpty()) {
-                continue;
-            }
-
-            // Calculate combined mean rating (arithmetic average of elements present in list)
-            double sum = 0.0;
-            int count = 0;
-            for (Integer id : componentSeasonalIds) {
-                AnimeDetails d = detailsMap.get(id);
-                if (d != null && d.getMean() != null) {
-                    sum += d.getMean();
-                    count++;
-                }
-            }
-            double combinedMean = count > 0 ? (sum / count) : 0.0;
-
-            // Pick the title of the entry with the highest popularity (lowest popularity rank) in the ENTIRE component
-            AnimeDetails representative = null;
-            for (Integer id : component) {
-                AnimeDetails d = null;
-                if (detailsMap.containsKey(id)) {
-                    d = detailsMap.get(id);
-                } else {
-                    try {
-                        d = animeService.getAnimeById(id);
-                    } catch (MalResourceNotFoundException e) {
-                        log.debug("Skipping relation graph bridge detail fetch failure for ID (Not Found): {}", id);
-                    } catch (Exception e) {
-                        log.error("Failed to fetch relation graph bridge detail for ID: {}", id, e);
-                        throw e;
+        
+        try (TerminalSpinner spinner = new TerminalSpinner(terminal, "Consolidating franchise results...")) {
+            for (Set<Integer> component : components) {
+                List<Integer> componentSeasonalIds = new ArrayList<>();
+                for (Integer id : component) {
+                    if (detailsMap.containsKey(id)) {
+                        componentSeasonalIds.add(id);
                     }
                 }
-                if (d == null) continue;
-                if (representative == null) {
-                    representative = d;
-                } else {
-                    Integer pRep = representative.getPopularity();
-                    Integer pD = d.getPopularity();
-                    if (pD != null && (pRep == null || pD < pRep)) {
+
+                if (componentSeasonalIds.isEmpty()) {
+                    continue;
+                }
+
+                // Calculate combined mean rating (arithmetic average of elements present in list)
+                double sum = 0.0;
+                int count = 0;
+                for (Integer id : componentSeasonalIds) {
+                    AnimeDetails d = detailsMap.get(id);
+                    if (d != null && d.getMean() != null) {
+                        sum += d.getMean();
+                        count++;
+                    }
+                }
+                double combinedMean = count > 0 ? (sum / count) : 0.0;
+
+                // Pick the title of the entry with the highest popularity (lowest popularity rank) in the ENTIRE component
+                AnimeDetails representative = null;
+                for (Integer id : component) {
+                    AnimeDetails d = null;
+                    if (detailsMap.containsKey(id)) {
+                        d = detailsMap.get(id);
+                    } else {
+                        try {
+                            d = animeService.getAnimeById(id);
+                        } catch (MalResourceNotFoundException e) {
+                            log.debug("Skipping relation graph bridge detail fetch failure for ID (Not Found): {}", id);
+                        } catch (Exception e) {
+                            log.error("Failed to fetch relation graph bridge detail for ID: {}", id, e);
+                            throw e;
+                        }
+                    }
+                    if (d == null) continue;
+                    if (representative == null) {
                         representative = d;
-                    } else if ((pD == null && pRep == null) || (pD != null && pD.equals(pRep))) {
-                        Double mRep = representative.getMean();
-                        Double mD = d.getMean();
-                        if (mD != null && (mRep == null || mD > mRep)) {
+                    } else {
+                        Integer pRep = representative.getPopularity();
+                        Integer pD = d.getPopularity();
+                        if (pD != null && (pRep == null || pD < pRep)) {
                             representative = d;
+                        } else if ((pD == null && pRep == null) || (pD != null && pD.equals(pRep))) {
+                            Double mRep = representative.getMean();
+                            Double mD = d.getMean();
+                            if (mD != null && (mRep == null || mD > mRep)) {
+                                representative = d;
+                            }
                         }
                     }
                 }
+
+                String finalTitle = representative != null ? representative.getDisplayTitle() : "Unknown Series";
+                Integer repId = representative != null ? representative.getId() : componentSeasonalIds.get(0);
+
+                consolidatedResults.add(SeasonalAnimeResult.builder()
+                        .id(repId)
+                        .title(finalTitle)
+                        .mean(combinedMean)
+                        .build());
             }
-
-            String finalTitle = representative != null ? representative.getDisplayTitle() : "Unknown Series";
-            Integer repId = representative != null ? representative.getId() : componentSeasonalIds.get(0);
-
-            consolidatedResults.add(SeasonalAnimeResult.builder()
-                    .id(repId)
-                    .title(finalTitle)
-                    .mean(combinedMean)
-                    .build());
         }
 
         // 5. Sort consolidated results by score descending, resolving duplicates via title and id comparison
@@ -280,27 +498,7 @@ public class RecommendationCommands {
             }
         }
 
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("\n=== Top Seasonal Anime (Past %s Years) ===\n", finalNumYears));
-        sb.append(String.format("%-4s | %-50s | %-6s\n", "Rank", "Title", "Rating"));
-        sb.append("-".repeat(66)).append("\n");
-        int rank = 1;
-        for (SeasonalAnimeResult res : sortedResult) {
-            if (rank > finalLimit) {
-                break;
-            }
-            String title = res.getTitle() != null ? res.getTitle() : "Unknown";
-            if (title.length() > 50) {
-                title = title.substring(0, 47) + "...";
-            }
-            sb.append(String.format("%-4d | %-50s | %-6.2f\n",
-                    rank,
-                    title,
-                    res.getMean() != null ? res.getMean() : 0.0));
-            rank++;
-        }
-        sb.append("==========================================\n");
-        return sb.toString();
+        return tableFormatter.formatSeasonal(finalNumYears, sortedResult, finalLimit);
     }
 
     @ShellMethod(key = "suggestions", value = "Retrieve personalized anime suggestions directly from MyAnimeList's native recommendations engine.")
@@ -308,10 +506,66 @@ public class RecommendationCommands {
             @ShellOption(defaultValue = ShellOption.NULL, help = "Output the suggestions in JSON format") Boolean json,
             @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum number of suggestions to return") Integer limit) {
         
-        boolean finalJson = json != null ? json : promptBoolean("Output the suggestions in JSON format?", false);
-        int finalLimit = limit != null ? limit : promptInt("Enter maximum number of suggestions to return", 10);
+        Boolean finalJson = json;
+        Integer finalLimit = limit;
 
-        AnimeList suggestionsList = recommendationService.getSuggestions();
+        if (json == null || limit == null) {
+            ComponentFlow.Builder flowBuilder = componentFlowBuilder.clone().reset();
+            boolean hasFlow = false;
+
+            if (json == null) {
+                flowBuilder.withSingleItemSelector("json")
+                        .name("Output the suggestions in JSON format?")
+                        .selectItems(List.of(
+                                SelectItem.of("No (standard table)", "false"),
+                                SelectItem.of("Yes (JSON text)", "true")
+                        ))
+                        .and();
+                hasFlow = true;
+            }
+            if (limit == null) {
+                flowBuilder.withSingleItemSelector("limit")
+                        .name("Enter maximum number of suggestions to return")
+                        .selectItems(List.of(
+                                SelectItem.of("5", "5"),
+                                SelectItem.of("10", "10"),
+                                SelectItem.of("20", "20"),
+                                SelectItem.of("50", "50")
+                        ))
+                        .and();
+                hasFlow = true;
+            }
+
+            if (hasFlow) {
+                var flowResult = flowBuilder.build().run();
+                var context = flowResult.getContext();
+
+                if (json == null) {
+                    String jsonVal = context.get("json");
+                    finalJson = "true".equalsIgnoreCase(jsonVal);
+                }
+                if (limit == null) {
+                    String limitVal = context.get("limit");
+                    try {
+                        finalLimit = limitVal != null ? Integer.parseInt(limitVal) : 10;
+                    } catch (NumberFormatException e) {
+                        finalLimit = 10;
+                    }
+                }
+            }
+        }
+
+        if (finalJson == null) {
+            finalJson = false;
+        }
+        if (finalLimit == null) {
+            finalLimit = 10;
+        }
+
+        AnimeList suggestionsList;
+        try (TerminalSpinner spinner = new TerminalSpinner(terminal, "Retrieving suggestions from MyAnimeList...")) {
+            suggestionsList = recommendationService.getSuggestions();
+        }
         List<Datum> data = suggestionsList != null ? suggestionsList.getData() : Collections.emptyList();
 
         if (finalJson) {
@@ -322,87 +576,86 @@ public class RecommendationCommands {
             }
         }
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("\n=== Personalized Suggestions from MyAnimeList ===\n");
-        sb.append(String.format("%-4s | %-10s | %s\n", "Rank", "ID", "Title"));
-        sb.append("-".repeat(60)).append("\n");
+        return tableFormatter.formatSuggestions(data, finalLimit);
+    }
 
-        int count = Math.min(data.size(), finalLimit);
-        for (int i = 0; i < count; i++) {
-            Datum d = data.get(i);
-            Node node = d.getNode();
-            if (node != null) {
-                sb.append(String.format("%-4d | %-10d | %s\n",
-                        i + 1,
-                        node.getId(),
-                        node.getDisplayTitle() != null ? node.getDisplayTitle() : "Unknown"));
+    @ShellMethod(key = "dashboard", value = "Show a distraction-free full-screen analytics dashboard of your anime recommendations.")
+    public void dashboard(
+            @ShellOption(defaultValue = ShellOption.NULL, help = "The MyAnimeList username, or '@me'") String userName
+    ) {
+        String finalUserName = userName;
+        if (finalUserName == null) {
+            var flowResult = componentFlowBuilder.clone().reset()
+                    .withStringInput("userName")
+                    .name("Enter MyAnimeList username")
+                    .defaultValue("@me")
+                    .and()
+                    .build()
+                    .run();
+            finalUserName = flowResult.getContext().get("userName");
+        }
+        if (finalUserName == null || finalUserName.trim().isEmpty()) {
+            finalUserName = "@me";
+        }
+
+        org.jline.terminal.Attributes originalAttributes = terminal.enterRawMode();
+        PrintWriter writer = terminal.writer();
+        try {
+            writer.print("\033[?1049h");
+            writer.print("\033[?25l");
+            writer.flush();
+
+            boolean running = true;
+            boolean needsRefresh = true;
+            List<RecommendationDetailedResult> recommendations = null;
+
+            while (running) {
+                if (needsRefresh) {
+                    writer.print("\033[H\033[2J");
+                    writer.println("Loading recommendations for " + finalUserName + "...");
+                    writer.flush();
+                    try {
+                        recommendations = recommendationFacade.getRecommendations(finalUserName, 10, null, null, null, null);
+                    } catch (Exception e) {
+                        writer.print("\033[H\033[2J");
+                        writer.println("Error fetching recommendations: " + e.getMessage());
+                        writer.println("\nPress [q] to exit, [r] to retry.");
+                        writer.flush();
+                        recommendations = null;
+                    }
+                    needsRefresh = false;
+                }
+
+                if (recommendations != null) {
+                    writer.print("\033[H\033[2J");
+                    writer.println("==============================================================================================================");
+                    writer.println("                               ANIME RECOMMENDATIONS ANALYTICS DASHBOARD");
+                    writer.println("==============================================================================================================");
+
+                    String formattedTable = tableFormatter.formatRecommendations(finalUserName, recommendations);
+                    writer.print(formattedTable);
+
+                    writer.println("\n [r] Refresh Data  |  [q] Exit Dashboard");
+                    writer.flush();
+                }
+
+                try {
+                    int ch = terminal.reader().read(200); // 200 ms timeout
+                    if (ch == 'q' || ch == 'Q') {
+                        running = false;
+                    } else if (ch == 'r' || ch == 'R') {
+                        needsRefresh = true;
+                    }
+                } catch (IOException e) {
+                    log.error("Error reading terminal input", e);
+                    running = false;
+                }
             }
-        }
-        sb.append("==================================================\n");
-        return sb.toString();
-    }
-
-    private String promptString(String promptText, String defaultValue) {
-        if (lineReaderProvider == null) {
-            return defaultValue;
-        }
-        LineReader lineReader = lineReaderProvider.getIfAvailable();
-        if (lineReader == null) {
-            return defaultValue;
-        }
-        try {
-            String line = lineReader.readLine(promptText + " (default: " + defaultValue + "): ");
-            if (line == null || line.trim().isEmpty()) {
-                return defaultValue;
-            }
-            return line.trim();
-        } catch (Exception e) {
-            log.debug("Failed to read interactive input, using default", e);
-            return defaultValue;
-        }
-    }
-
-    private boolean promptBoolean(String promptText, boolean defaultValue) {
-        String defaultStr = defaultValue ? "y" : "n";
-        String response = promptString(promptText + " (y/n)", defaultStr);
-        return response.equalsIgnoreCase("y") || response.equalsIgnoreCase("yes") || response.equalsIgnoreCase("true");
-    }
-
-    private int promptInt(String promptText, int defaultValue) {
-        String response = promptString(promptText, String.valueOf(defaultValue));
-        try {
-            return Integer.parseInt(response);
-        } catch (NumberFormatException e) {
-            System.out.println("Invalid number format. Using default: " + defaultValue);
-            return defaultValue;
-        }
-    }
-
-    private Integer promptOptionalInt(String promptText, Integer defaultValue) {
-        String defaultStr = defaultValue != null ? String.valueOf(defaultValue) : "";
-        String response = promptString(promptText, defaultStr);
-        if (response.isEmpty()) {
-            return null;
-        }
-        try {
-            return Integer.parseInt(response);
-        } catch (NumberFormatException e) {
-            System.out.println("Invalid number format. Using default: " + (defaultValue != null ? defaultValue : "none"));
-            return defaultValue;
-        }
-    }
-
-    private Double promptOptionalDouble(String promptText, Double defaultValue) {
-        String defaultStr = defaultValue != null ? String.valueOf(defaultValue) : "";
-        String response = promptString(promptText, defaultStr);
-        if (response.isEmpty()) {
-            return null;
-        }
-        try {
-            return Double.parseDouble(response);
-        } catch (NumberFormatException e) {
-            System.out.println("Invalid number format. Using default: " + (defaultValue != null ? defaultValue : "none"));
-            return defaultValue;
+        } finally {
+            terminal.setAttributes(originalAttributes);
+            writer.print("\033[?25h");
+            writer.print("\033[?1049l");
+            writer.flush();
         }
     }
 }

@@ -3,9 +3,11 @@ package com.gordonpn.anime.commands;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gordonpn.anime.models.*;
 import com.gordonpn.anime.models.dto.RecommendationDetailedResult;
+import com.gordonpn.anime.models.dto.SeasonalAnimeResult;
 import com.gordonpn.anime.service.AnimeService;
 import com.gordonpn.anime.service.RecommendationService;
 import com.gordonpn.anime.service.recommendation.RecommendationFacade;
+import com.gordonpn.anime.service.recommendation.TableFormatter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,7 +15,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.jline.reader.LineReader;
+import org.jline.terminal.Terminal;
+import org.springframework.shell.component.flow.ComponentFlow;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,7 +27,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 public class RecommendationCommandsTests {
@@ -32,17 +40,28 @@ public class RecommendationCommandsTests {
     private AnimeService animeService;
     @Mock
     private RecommendationFacade recommendationFacade;
+    @Mock
+    private ComponentFlow.Builder componentFlowBuilder;
+    @Mock
+    private Terminal terminal;
 
+    private final TableFormatter tableFormatter = new TableFormatter();
     private RecommendationCommands recommendationCommands;
 
     @BeforeEach
     public void setUp() {
+        // Stub terminal.writer() to avoid NullPointerException in TerminalSpinner
+        lenient().when(terminal.writer()).thenReturn(new PrintWriter(new StringWriter()));
+
         recommendationCommands = new RecommendationCommands(
                 new ObjectMapper(), // Use real objectMapper for formatting output
                 recommendationService,
                 animeService,
                 recommendationFacade,
-                null
+                null,
+                componentFlowBuilder,
+                terminal,
+                tableFormatter
         );
     }
 
@@ -113,32 +132,69 @@ public class RecommendationCommandsTests {
         assertTrue(output.contains("8.90"));
     }
 
-    @Mock
-    private ObjectProvider<LineReader> lineReaderProviderMock;
-    @Mock
-    private LineReader lineReaderMock;
-
     @Test
     public void testRecommendationInteractivePrompts() throws Exception {
-        recommendationCommands = new RecommendationCommands(
-                new ObjectMapper(),
-                recommendationService,
-                animeService,
-                recommendationFacade,
-                lineReaderProviderMock
-        );
+        var cloneMock = org.mockito.Mockito.mock(ComponentFlow.Builder.class);
+        var resetMock = org.mockito.Mockito.mock(ComponentFlow.Builder.class);
+        
+        var userNameSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.StringInputSpec.class);
+        var jsonSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.SingleItemSelectorSpec.class);
+        var limitSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.SingleItemSelectorSpec.class);
+        var minYearSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.StringInputSpec.class);
+        var maxYearSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.StringInputSpec.class);
+        var decayMonthsSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.StringInputSpec.class);
+        var freshnessBoostSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.StringInputSpec.class);
 
-        when(lineReaderProviderMock.getIfAvailable()).thenReturn(lineReaderMock);
-        // Returns empty username (defaults to @me), "y" for JSON (maps to true), "5" for limit,
-        // and empty strings for optional min/max years and decayMonths (defaults to null)
-        when(lineReaderMock.readLine(anyString()))
-                .thenReturn("")
-                .thenReturn("y")
-                .thenReturn("5")
-                .thenReturn("")
-                .thenReturn("")
-                .thenReturn("")
-                .thenReturn("");
+        when(componentFlowBuilder.clone()).thenReturn(cloneMock);
+        when(cloneMock.reset()).thenReturn(resetMock);
+
+        when(resetMock.withStringInput("userName")).thenReturn(userNameSpecMock);
+        when(userNameSpecMock.name(anyString())).thenReturn(userNameSpecMock);
+        when(userNameSpecMock.defaultValue(anyString())).thenReturn(userNameSpecMock);
+        when(userNameSpecMock.and()).thenReturn(resetMock);
+
+        when(resetMock.withSingleItemSelector("json")).thenReturn(jsonSpecMock);
+        when(jsonSpecMock.name(anyString())).thenReturn(jsonSpecMock);
+        when(jsonSpecMock.selectItems(anyList())).thenReturn(jsonSpecMock);
+        when(jsonSpecMock.and()).thenReturn(resetMock);
+
+        when(resetMock.withSingleItemSelector("limit")).thenReturn(limitSpecMock);
+        when(limitSpecMock.name(anyString())).thenReturn(limitSpecMock);
+        when(limitSpecMock.selectItems(anyList())).thenReturn(limitSpecMock);
+        when(limitSpecMock.and()).thenReturn(resetMock);
+
+        when(resetMock.withStringInput("minYear")).thenReturn(minYearSpecMock);
+        when(minYearSpecMock.name(anyString())).thenReturn(minYearSpecMock);
+        when(minYearSpecMock.and()).thenReturn(resetMock);
+
+        when(resetMock.withStringInput("maxYear")).thenReturn(maxYearSpecMock);
+        when(maxYearSpecMock.name(anyString())).thenReturn(maxYearSpecMock);
+        when(maxYearSpecMock.and()).thenReturn(resetMock);
+
+        when(resetMock.withStringInput("decayMonths")).thenReturn(decayMonthsSpecMock);
+        when(decayMonthsSpecMock.name(anyString())).thenReturn(decayMonthsSpecMock);
+        when(decayMonthsSpecMock.and()).thenReturn(resetMock);
+
+        when(resetMock.withStringInput("freshnessBoost")).thenReturn(freshnessBoostSpecMock);
+        when(freshnessBoostSpecMock.name(anyString())).thenReturn(freshnessBoostSpecMock);
+        when(freshnessBoostSpecMock.and()).thenReturn(resetMock);
+
+        var flowMock = org.mockito.Mockito.mock(ComponentFlow.class);
+        when(resetMock.build()).thenReturn(flowMock);
+
+        var resultMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.ComponentFlow.ComponentFlowResult.class);
+        when(flowMock.run()).thenReturn(resultMock);
+
+        var contextMock = org.mockito.Mockito.mock(org.springframework.shell.component.context.ComponentContext.class);
+        when(resultMock.getContext()).thenReturn(contextMock);
+
+        when(contextMock.get("userName")).thenReturn("@me");
+        when(contextMock.get("json")).thenReturn("true");
+        when(contextMock.get("limit")).thenReturn("5");
+        when(contextMock.get("minYear")).thenReturn("");
+        when(contextMock.get("maxYear")).thenReturn("");
+        when(contextMock.get("decayMonths")).thenReturn("");
+        when(contextMock.get("freshnessBoost")).thenReturn("");
 
         List<RecommendationDetailedResult> recs = List.of(
                 RecommendationDetailedResult.builder().id(12).title("Test").score(10.0).build()
