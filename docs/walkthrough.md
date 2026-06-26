@@ -1,35 +1,67 @@
-# Completion Walkthrough — Multi-Signal Recommendation Enhancements
+# Completion Walkthrough — Interactive CLI Presentation Layer & Terminal Configuration Fix
 
-I have completed the implementation of the multi-signal recommendation engine improvements, enabling completed show grouping, user score-based rating scaling, and candidate franchise-wide rating averages.
+I have completed the presentation layer refactoring of the anime recommendation CLI and resolved the runtime initialization bug that threw `java.lang.IllegalArgumentException: terminal must be set`.
 
 ## Summary of Changes
 
-### 1. Data Models
-- Updated [RecommendationDetailedResult.java](file:///Users/gordonpn/workspace/anime-recommendation/src/main/java/com/gordonpn/anime/models/RecommendationDetailedResult.java) to make the `occurrence` field a `Double` type to support floating-point weighted values. Added a `meanRating` field.
+### 1. Extracted Table Formatter Service
+- **[TableFormatter.java](file:///Users/gordonpn/workspace/anime-recommendation/src/main/java/com/gordonpn/anime/service/recommendation/explanation/TableFormatter.java)** (New):
+  - Created a dedicated presentation service that constructs high-fidelity output grids.
+  - Implements `formatRecommendations`, `formatSeasonal`, and `formatSuggestions` methods.
+  - Uses JLine 3's `AttributedStringBuilder` and `AttributedStyle` with unicode box-drawing characters (`│`, `─`, `┼`).
+  - Renders grid lines in a muted grey color (`AttributedStyle.BLACK | AttributedStyle.BRIGHT`).
+  - Employs conditional green bold formatting (`AttributedStyle.GREEN` / `AttributedStyle.BOLD`) to highlight high scores (> 8.0).
 
-### 2. Service/Business Logic
-- **Completed Show Grouping & Rating Pooling:** Modified [RecommendationFacade.java](file:///Users/gordonpn/workspace/anime-recommendation/src/main/java/com/gordonpn/anime/service/recommendation/RecommendationFacade.java) to run a connected components BFS algorithm across completed shows to partition them into series/franchises. Recommendation signals from all parts of a franchise are pooled.
-- **User Score Scaling:** Applied a weight multiplier of `avgGroupUserScore / 7.0` (or `1.0` if unrated) to each source show's recommendation occurrence contribution.
-- **Candidate Franchise-Wide Average Rating:** Implemented `calculateOverallFranchiseRating` in the facade to expand candidate relations to direct prequel, sequel, and parent/full story titles (capped at a maximum of 10 API/cache lookups) and compute a franchise-wide rating average rather than using a single title's rating.
-- **Service & Explanation Updates:** Adjusted [RecommendationService.java](file:///Users/gordonpn/workspace/anime-recommendation/src/main/java/com/gordonpn/anime/service/RecommendationService.java), [RankingService.java](file:///Users/gordonpn/workspace/anime-recommendation/src/main/java/com/gordonpn/anime/service/recommendation/RankingService.java), and [ExplanationService.java](file:///Users/gordonpn/workspace/anime-recommendation/src/main/java/com/gordonpn/anime/service/recommendation/ExplanationService.java) to handle primitive double occurrences and format output strings. Specifically, shortened the output format of `Explanation` (e.g. `Based on: "Show 1", "Show 2" (+N)`) to fit better in the CLI display.
+### 2. Implemented Asynchronous Status Spinner
+- **[TerminalSpinner.java](file:///Users/gordonpn/workspace/anime-recommendation/src/main/java/com/gordonpn/anime/util/TerminalSpinner.java)** (New):
+  - Implemented an `AutoCloseable` progress spinner utility.
+  - Manages a daemon background thread that animates braille frames (`⠋`, `⠙`, `⠹`...) at an 80ms interval.
+  - Employs escape carriage returns (`\r`) and erase-line instructions (`\033[K`) to dynamically render loader states on a single line.
+  - Wipes itself cleanly from the terminal line buffer upon calling `close()`.
 
-### 3. CLI Command Output Formatting
-- Updated [RecommendationCommands.java](file:///Users/gordonpn/workspace/anime-recommendation/src/main/java/com/gordonpn/anime/commands/RecommendationCommands.java) to print occurrences formatted as `%-6.1f` (float format), ensuring decimals are readable.
+### 3. Integrated Spring Shell ComponentFlows
+- **[RecommendationCommands.java](file:///Users/gordonpn/workspace/anime-recommendation/src/main/java/com/gordonpn/anime/commands/RecommendationCommands.java)**:
+  - Removed old primitive string parsing methods (`promptString`, `promptBoolean`, `promptInt`).
+  - Injected Spring Shell's native `ComponentFlow.Builder` and `Terminal`.
+  - Configured conditional interactive wizard prompts utilizing arrow-key `SingleItemSelector` selections for boolean formats and multi-choice limits.
+  - Wrapped MyAnimeList network-bound and database API executions within `try-with-resources` blocks using `TerminalSpinner`.
+  - Delegated text grid compilation to the `TableFormatter` service.
+  - Hardened context parsing with an exception-guarded helper `getSafe(...)` that handles missing or bypassed optional inputs without throwing `NoSuchElementException`.
+
+### 4. Created Distraction-Free Analytics Dashboard
+- **[RecommendationCommands.java](file:///Users/gordonpn/workspace/anime-recommendation/src/main/java/com/gordonpn/anime/commands/RecommendationCommands.java)**:
+  - Added a new `dashboard` shell command.
+  - Switches standard terminal scroll history to JLine's alternate screen buffer (`\033[?1049h`) and hides the cursor (`\033[?25l`).
+  - Activates terminal raw keyboard mode (`terminal.enterRawMode()`) to receive immediate keypresses without waiting for Enter.
+  - Runs a lightweight event poll loop allowing users to press `[r]` to refresh recommendations or `[q]` to cleanly restore standard terminal buffers (`\033[?1049l` & `\033[?25h`).
+
+### 5. Automated Tests Preservation
+- **[RecommendationCommandsTests.java](file:///Users/gordonpn/workspace/anime-recommendation/src/test/java/com/gordonpn/anime/commands/RecommendationCommandsTests.java)**:
+  - Updated mock instantiation of the command class with the new dependencies.
+  - Stubbed JLine's `Terminal` and `PrintWriter` behavior.
+  - Mocked the fluent builder API sequences for Spring Shell `ComponentFlow` to verify interactive prompt configurations.
+
+### 6. Terminal Initialization Bug Fix
+- **Removed custom `TuiComponentConfiguration.java`**:
+  - Investigated the root cause of `java.lang.IllegalArgumentException: terminal must be set`.
+  - Identified that the custom `TuiComponentConfiguration.java` definition of the `componentFlowBuilder` bean overrode Spring Shell's standard auto-configured `ComponentFlow.Builder` bean.
+  - The custom bean instantiated a raw `ComponentFlow.Builder` without injecting and setting the environment `Terminal`, `ResourceLoader`, or `TemplateExecutor` dependencies, resulting in null values at runtime.
+  - Removed `TuiComponentConfiguration.java` entirely. This restores Spring Shell's native `ComponentFlowAutoConfiguration` which registers a fully-configured `ComponentFlow.Builder` bean with correct dependencies pre-wired.
 
 ---
 
-## Verification Results
+## Verification & Validation Results
 
-### 1. Automated Tests
-- Updated [RecommendationServiceTests.java](file:///Users/gordonpn/workspace/anime-recommendation/src/test/java/com/gordonpn/anime/service/RecommendationServiceTests.java) to mock the updated `double` occurrences.
-- Added `testCompletedGroupingAndScoring` in [RecommendationFacadeTests.java](file:///Users/gordonpn/workspace/anime-recommendation/src/test/java/com/gordonpn/anime/service/recommendation/RecommendationFacadeTests.java) testing grouping, multipliers, and franchise averages.
-- Ran all unit tests successfully:
-  ```bash
-  ./gradlew test
-  ```
+### 1. Automated Verification
+We executed the full Gradle compile and test pipeline:
+```bash
+./gradlew test
+```
+*Output: BUILD SUCCESSFUL (all unit tests, mock flows, and seasonal grouping logic assertions pass).*
 
 ### 2. Manual Verification (CLI Execution)
-- Ran `java -jar build/libs/anime-0.0.1-SNAPSHOT.jar recommendation --userName @me`:
-  - Occurrences are displayed as float values (`304.0`, `160.0`, etc.).
-  - Sources in explanations group under the component's representative title.
-  - Explanations display in a clean, shortened format: `Based on: "Show 1", "Show 2" (+N)`.
+- Ran the packaged JAR: `java -jar build/libs/anime-0.0.1-SNAPSHOT.jar`
+- Executed `recommendation` and confirmed:
+  - Spinner animates correctly during data load.
+  - Table formats output cleanly with cyan headers, green bold highlights, and muted borders.
+  - Flow runs cleanly in both interactive systems and headless configurations without throwing initialization exceptions.
