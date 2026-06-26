@@ -41,7 +41,7 @@ public class TableFormatter {
 
         // Separator line
         sb.style(BORDER_STYLE);
-        sb.append("─".repeat(4));
+        sb.append("─".repeat(5));
         sb.append("┼");
         sb.append("─".repeat(42));
         sb.append("┼");
@@ -97,7 +97,7 @@ public class TableFormatter {
         sb.style(HEADER_STYLE).append(" Rating\n");
 
         sb.style(BORDER_STYLE);
-        sb.append("─".repeat(4));
+        sb.append("─".repeat(5));
         sb.append("┼");
         sb.append("─".repeat(52));
         sb.append("┼");
@@ -140,7 +140,7 @@ public class TableFormatter {
         sb.style(HEADER_STYLE).append(" Title\n");
 
         sb.style(BORDER_STYLE);
-        sb.append("─".repeat(4));
+        sb.append("─".repeat(5));
         sb.append("┼");
         sb.append("─".repeat(12));
         sb.append("┼");
