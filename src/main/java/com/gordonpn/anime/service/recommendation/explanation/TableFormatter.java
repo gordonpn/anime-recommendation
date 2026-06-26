@@ -1,4 +1,4 @@
-package com.gordonpn.anime.service.recommendation;
+package com.gordonpn.anime.service.recommendation.explanation;
 
 import com.gordonpn.anime.models.Datum;
 import com.gordonpn.anime.models.Node;
@@ -15,75 +15,57 @@ import java.util.Set;
 public class TableFormatter {
 
     private static final AttributedStyle BORDER_STYLE = AttributedStyle.DEFAULT.foreground(AttributedStyle.BLACK | AttributedStyle.BRIGHT);
-    private static final AttributedStyle HEADER_STYLE = AttributedStyle.DEFAULT.bold();
+    private static final AttributedStyle HEADER_STYLE = AttributedStyle.DEFAULT.bold().foreground(AttributedStyle.CYAN);
     private static final AttributedStyle HIGH_SCORE_STYLE = AttributedStyle.DEFAULT.foreground(AttributedStyle.GREEN).bold();
     private static final AttributedStyle DEFAULT_STYLE = AttributedStyle.DEFAULT;
 
-    public String formatRecommendations(String userName, List<RecommendationDetailedResult> recommendations) {
-        AttributedStringBuilder sb = new AttributedStringBuilder();
-
-        sb.append(String.format("\n=== Recommendations for %s ===\n", userName));
-
-        // Format header
-        sb.style(HEADER_STYLE).append(String.format("%-4s", "Rank"));
-        appendSeparator(sb);
-        sb.style(HEADER_STYLE).append(String.format(" %-40s", "Title"));
-        appendSeparator(sb);
-        sb.style(HEADER_STYLE).append(String.format(" %-6s", "Score"));
-        appendSeparator(sb);
-        sb.style(HEADER_STYLE).append(String.format(" %-6s", "Occur"));
-        appendSeparator(sb);
-        sb.style(HEADER_STYLE).append(String.format(" %-6s", "Rating"));
-        appendSeparator(sb);
-        sb.style(HEADER_STYLE).append(String.format(" %-6s", "Pop"));
-        appendSeparator(sb);
-        sb.style(HEADER_STYLE).append(" Explanation\n");
-
-        // Separator line
-        sb.style(BORDER_STYLE);
-        sb.append("─".repeat(5));
-        sb.append("┼");
-        sb.append("─".repeat(42));
-        sb.append("┼");
-        sb.append("─".repeat(8));
-        sb.append("┼");
-        sb.append("─".repeat(8));
-        sb.append("┼");
-        sb.append("─".repeat(8));
-        sb.append("┼");
-        sb.append("─".repeat(8));
-        sb.append("┼");
-        sb.append("─".repeat(26));
-        sb.append("\n");
-
+    public String formatRecommendations(List<RecommendationDetailedResult> recommendations, String userName) {
+        AttributedStringBuilder asb = new AttributedStringBuilder();
+        
+        // Define clean, reusable color profiles using standard JLine Ansi codes
+        AttributedStyle headerStyle = AttributedStyle.DEFAULT.bold().foreground(AttributedStyle.CYAN);
+        AttributedStyle borderStyle = AttributedStyle.DEFAULT.foreground(AttributedStyle.BLACK | AttributedStyle.BRIGHT); // Muted gray
+        AttributedStyle highlightStyle = AttributedStyle.DEFAULT.bold().foreground(AttributedStyle.GREEN);
+        
+        // Header Layout
+        asb.append("\n");
+        asb.style(AttributedStyle.DEFAULT.bold().foreground(AttributedStyle.MAGENTA));
+        asb.append(String.format("=== Personalized Recommendations for %s ===\n", userName));
+        
+        asb.style(headerStyle);
+        asb.append(String.format("%-4s │ %-40s │ %-6s │ %-6s │ %-6s │ %s\n", 
+                "Rank", "Title", "Score", "Occur", "Rating", "Explanation"));
+        
+        asb.style(borderStyle);
+        asb.append("─".repeat(5) + "┼" + "─".repeat(42) + "┼"
+           + "─".repeat(8) + "┼" + "─".repeat(8) + "┼"
+           + "─".repeat(8) + "┼" + "─".repeat(30) + "\n");
+        
         for (int i = 0; i < recommendations.size(); i++) {
             RecommendationDetailedResult res = recommendations.get(i);
             String title = res.getTitle() != null ? res.getTitle() : "Unknown";
             if (title.length() > 40) {
                 title = title.substring(0, 37) + "...";
             }
-
-            // High recommendation score or user rating threshold (e.g. score > 8.0)
-            boolean isHighScore = res.getScore() != null && res.getScore() > 8.0;
-            AttributedStyle style = isHighScore ? HIGH_SCORE_STYLE : DEFAULT_STYLE;
-
-            sb.style(style).append(String.format("%-4d", i + 1));
-            appendSeparator(sb);
-            sb.style(style).append(String.format(" %-40s", title));
-            appendSeparator(sb);
-            sb.style(style).append(String.format(" %-6.2f", res.getScore() != null ? res.getScore() : 0.0));
-            appendSeparator(sb);
-            sb.style(style).append(String.format(" %-6.1f", res.getOccurrence() != null ? res.getOccurrence() : 0.0));
-            appendSeparator(sb);
-            sb.style(style).append(String.format(" %-6.1f", res.getMeanRating() != null ? res.getMeanRating() : 0.0));
-            appendSeparator(sb);
-            sb.style(style).append(String.format(" %-6s", res.getPopularity() != null ? String.valueOf(res.getPopularity()) : "N/A"));
-            appendSeparator(sb);
-            sb.style(style).append(" ").append(res.getExplanation() != null ? res.getExplanation() : "").append("\n");
+            
+            // Dynamic row accentuation based on composite threshold calculations
+            boolean isHighMatch = res.getScore() != null && res.getScore() > 8.5;
+            asb.style(isHighMatch ? highlightStyle : AttributedStyle.DEFAULT);
+            
+            asb.append(String.format("%-4d │ %-40s │ ", i + 1, title));
+            asb.append(String.format("%-6.2f │ ", res.getScore() != null ? res.getScore() : 0.0));
+            asb.append(String.format("%-6.1f │ ", res.getOccurrence() != null ? res.getOccurrence() : 0.0));
+            asb.append(String.format("%-6.1f │ ", res.getMeanRating() != null ? res.getMeanRating() : 0.0));
+            
+            // Revert explanation text to standard formatting to preserve scannability
+            asb.style(AttributedStyle.DEFAULT);
+            asb.append(res.getExplanation() != null ? res.getExplanation() : "").append("\n");
         }
-
-        sb.style(BORDER_STYLE).append("==============================================================================================================\n");
-        return sb.toAnsi();
+        
+        asb.style(borderStyle);
+        asb.append("═".repeat(115)).append("\n");
+        
+        return asb.toAnsi();
     }
 
     public String formatSeasonal(String numYears, Set<SeasonalAnimeResult> sortedResult, int limit) {

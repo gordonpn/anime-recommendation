@@ -23,7 +23,7 @@ import org.springframework.shell.standard.ShellOption;
 import org.springframework.shell.component.flow.ComponentFlow;
 import org.springframework.shell.component.flow.SelectItem;
 import org.jline.terminal.Terminal;
-import com.gordonpn.anime.service.recommendation.TableFormatter;
+import com.gordonpn.anime.service.recommendation.explanation.TableFormatter;
 import com.gordonpn.anime.util.TerminalSpinner;
 
 import java.io.PrintWriter;
@@ -235,7 +235,7 @@ public class RecommendationCommands {
             }
         }
 
-        return tableFormatter.formatRecommendations(finalUserName, recommendations);
+        return tableFormatter.formatRecommendations(recommendations, finalUserName);
     }
 
     @ShellMethod(key = "seasonal", value = "Recommend top-rated seasonal anime from past years, grouped by franchise component.")
@@ -632,7 +632,7 @@ public class RecommendationCommands {
                     writer.println("                               ANIME RECOMMENDATIONS ANALYTICS DASHBOARD");
                     writer.println("==============================================================================================================");
 
-                    String formattedTable = tableFormatter.formatRecommendations(finalUserName, recommendations);
+                    String formattedTable = tableFormatter.formatRecommendations(recommendations, finalUserName);
                     writer.print(formattedTable);
 
                     writer.println("\n [r] Refresh Data  |  [q] Exit Dashboard");

@@ -7,7 +7,7 @@ import com.gordonpn.anime.models.dto.SeasonalAnimeResult;
 import com.gordonpn.anime.service.AnimeService;
 import com.gordonpn.anime.service.RecommendationService;
 import com.gordonpn.anime.service.recommendation.RecommendationFacade;
-import com.gordonpn.anime.service.recommendation.TableFormatter;
+import com.gordonpn.anime.service.recommendation.explanation.TableFormatter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
