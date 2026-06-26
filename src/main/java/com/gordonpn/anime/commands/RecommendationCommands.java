@@ -223,7 +223,12 @@ public class RecommendationCommands {
         }
 
         List<RecommendationDetailedResult> recommendations;
-        try (TerminalSpinner spinner = new TerminalSpinner(terminal, "Generating recommendations for " + finalUserName + "...")) {
+        Terminal actTerminal = Boolean.TRUE.equals(finalJson) ? null : getTerminal();
+        if (actTerminal != null) {
+            try (TerminalSpinner spinner = new TerminalSpinner(actTerminal, "Generating recommendations for " + finalUserName + "...")) {
+                recommendations = recommendationFacade.getRecommendations(finalUserName, finalLimit, finalMinYear, finalMaxYear, finalDecayMonths, finalFreshnessBoost);
+            }
+        } else {
             recommendations = recommendationFacade.getRecommendations(finalUserName, finalLimit, finalMinYear, finalMaxYear, finalDecayMonths, finalFreshnessBoost);
         }
         
@@ -328,7 +333,20 @@ public class RecommendationCommands {
         final int finalYears = years;
         final List<Datum> finalAllData = allData;
 
-        try (TerminalSpinner spinner = new TerminalSpinner(terminal, "Fetching seasonal anime lists...")) {
+        Terminal actTerminal = Boolean.TRUE.equals(finalJson) ? null : getTerminal();
+        if (actTerminal != null) {
+            try (TerminalSpinner spinner = new TerminalSpinner(actTerminal, "Fetching seasonal anime lists...")) {
+                for (var i = 0; i < finalYears; i++) {
+                    for (String season : seasons) {
+                        SeasonalAnime seasonalAnime = animeService.getSeasonalAnime(season, currentYear - i);
+                        List<Datum> data = seasonalAnime.getData();
+                        if (data != null) {
+                            finalAllData.addAll(data);
+                        }
+                    }
+                }
+            }
+        } else {
             for (var i = 0; i < finalYears; i++) {
                 for (String season : seasons) {
                     SeasonalAnime seasonalAnime = animeService.getSeasonalAnime(season, currentYear - i);
@@ -355,7 +373,36 @@ public class RecommendationCommands {
         Map<Integer, Set<Integer>> graph = new HashMap<>();
         Map<Integer, AnimeDetails> detailsMap = new HashMap<>();
 
-        try (TerminalSpinner spinner = new TerminalSpinner(terminal, "Building relation graph for top seasonal titles...")) {
+        if (actTerminal != null) {
+            try (TerminalSpinner spinner = new TerminalSpinner(actTerminal, "Building relation graph for top seasonal titles...")) {
+                for (Datum datum : topSeasonal) {
+                    Integer id = datum.getNode().getId();
+                    try {
+                        AnimeDetails details = animeService.getAnimeById(id);
+                        detailsMap.put(id, details);
+
+                        graph.putIfAbsent(id, new HashSet<>());
+
+                        List<RelatedAnime> related = details.getRelatedAnime();
+                        if (related != null) {
+                            for (RelatedAnime rel : related) {
+                                if (rel.getNode() != null && rel.getNode().getId() != null) {
+                                    Integer relId = rel.getNode().getId();
+                                    graph.putIfAbsent(relId, new HashSet<>());
+                                    graph.get(id).add(relId);
+                                    graph.get(relId).add(id);
+                                }
+                            }
+                        }
+                    } catch (MalResourceNotFoundException e) {
+                        log.warn("Seasonal anime ID {} not found on MyAnimeList, skipping: {}", id, e.getMessage());
+                    } catch (Exception e) {
+                        log.error("Failed to fetch relations for seasonal anime ID: {}", id, e);
+                        throw e;
+                    }
+                }
+            }
+        } else {
             for (Datum datum : topSeasonal) {
                 Integer id = datum.getNode().getId();
                 try {
@@ -412,7 +459,77 @@ public class RecommendationCommands {
         // 4. Consolidate seasonal items belonging to the same component
         List<SeasonalAnimeResult> consolidatedResults = new ArrayList<>();
         
-        try (TerminalSpinner spinner = new TerminalSpinner(terminal, "Consolidating franchise results...")) {
+        if (actTerminal != null) {
+            try (TerminalSpinner spinner = new TerminalSpinner(actTerminal, "Consolidating franchise results...")) {
+                for (Set<Integer> component : components) {
+                    List<Integer> componentSeasonalIds = new ArrayList<>();
+                    for (Integer id : component) {
+                        if (detailsMap.containsKey(id)) {
+                            componentSeasonalIds.add(id);
+                        }
+                    }
+
+                    if (componentSeasonalIds.isEmpty()) {
+                        continue;
+                    }
+
+                    // Calculate combined mean rating (arithmetic average of elements present in list)
+                    double sum = 0.0;
+                    int count = 0;
+                    for (Integer id : componentSeasonalIds) {
+                        AnimeDetails d = detailsMap.get(id);
+                        if (d != null && d.getMean() != null) {
+                            sum += d.getMean();
+                            count++;
+                        }
+                    }
+                    double combinedMean = count > 0 ? (sum / count) : 0.0;
+
+                    // Pick the title of the entry with the highest popularity (lowest popularity rank) in the ENTIRE component
+                    AnimeDetails representative = null;
+                    for (Integer id : component) {
+                        AnimeDetails d = null;
+                        if (detailsMap.containsKey(id)) {
+                            d = detailsMap.get(id);
+                        } else {
+                            try {
+                                d = animeService.getAnimeById(id);
+                            } catch (MalResourceNotFoundException e) {
+                                log.debug("Skipping relation graph bridge detail fetch failure for ID (Not Found): {}", id);
+                            } catch (Exception e) {
+                                log.error("Failed to fetch relation graph bridge detail for ID: {}", id, e);
+                                throw e;
+                            }
+                        }
+                        if (d == null) continue;
+                        if (representative == null) {
+                            representative = d;
+                        } else {
+                            Integer pRep = representative.getPopularity();
+                            Integer pD = d.getPopularity();
+                            if (pD != null && (pRep == null || pD < pRep)) {
+                                representative = d;
+                            } else if ((pD == null && pRep == null) || (pD != null && pD.equals(pRep))) {
+                                Double mRep = representative.getMean();
+                                Double mD = d.getMean();
+                                if (mD != null && (mRep == null || mD > mRep)) {
+                                    representative = d;
+                                }
+                            }
+                        }
+                    }
+
+                    String finalTitle = representative != null ? representative.getDisplayTitle() : "Unknown Series";
+                    Integer repId = representative != null ? representative.getId() : componentSeasonalIds.get(0);
+
+                    consolidatedResults.add(SeasonalAnimeResult.builder()
+                            .id(repId)
+                            .title(finalTitle)
+                            .mean(combinedMean)
+                            .build());
+                }
+            }
+        } else {
             for (Set<Integer> component : components) {
                 List<Integer> componentSeasonalIds = new ArrayList<>();
                 for (Integer id : component) {
@@ -563,7 +680,12 @@ public class RecommendationCommands {
         }
 
         AnimeList suggestionsList;
-        try (TerminalSpinner spinner = new TerminalSpinner(terminal, "Retrieving suggestions from MyAnimeList...")) {
+        Terminal actTerminal = Boolean.TRUE.equals(finalJson) ? null : getTerminal();
+        if (actTerminal != null) {
+            try (TerminalSpinner spinner = new TerminalSpinner(actTerminal, "Retrieving suggestions from MyAnimeList...")) {
+                suggestionsList = recommendationService.getSuggestions();
+            }
+        } else {
             suggestionsList = recommendationService.getSuggestions();
         }
         List<Datum> data = suggestionsList != null ? suggestionsList.getData() : Collections.emptyList();
@@ -668,5 +790,15 @@ public class RecommendationCommands {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private Terminal getTerminal() {
+        if (lineReaderProvider != null) {
+            var reader = lineReaderProvider.getIfAvailable();
+            if (reader != null) {
+                return reader.getTerminal();
+            }
+        }
+        return this.terminal;
     }
 }
