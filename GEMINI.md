@@ -76,6 +76,11 @@
 - **Keyboard Navigation:** Uses `SingleItemSelector` for boolean prompts (JSON format select) and multi-choice limits (e.g., limit selector 5/10/20/50) to provide arrow-key menu selections directly inline.
 - **Gated Flow:** Interactive prompts are dynamically built and executed ONLY for command options that are passed as `null`, ensuring non-interactive scripting pipelines and unit tests run seamlessly without blocking on prompts.
 
+### ComponentFlow.Builder Dependency Integration
+- **Relying on Auto-Configuration:** Instead of defining a custom `ComponentFlow.Builder` bean (which overrides Spring Shell's default and can lead to missing properties like `Terminal` or `ResourceLoader` causing `IllegalArgumentException: terminal must be set`), we rely on Spring Shell's native `ComponentFlowAutoConfiguration`. This ensures the builder is correctly configured with all platform components and shell customizers.
+- **Builder Lifecycle:** When cloning and resetting the builder in command classes via `builder.clone().reset()`, all internal component registrations are cleared for a fresh flow run, while the configured `Terminal` and `ResourceLoader` instances are safely preserved.
+
+
 ### TableFormatter Presentation Service
 - **Decoupled Layout:** Table layout formatting is moved out of the shell command entry points into `TableFormatter.java` to isolate CLI presentation concerns.
 - **High-Fidelity Unicode Grids:** Renders table frames using unicode box-drawing characters (`│`, `─`, `┼`) with colors configured using JLine 3's `AttributedStringBuilder` and `AttributedStyle`.
