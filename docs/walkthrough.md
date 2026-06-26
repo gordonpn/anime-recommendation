@@ -11,6 +11,7 @@ I have completed the presentation layer refactoring of the anime recommendation 
   - Uses JLine 3's `AttributedStringBuilder` and `AttributedStyle` with unicode box-drawing characters (`│`, `─`, `┼`).
   - Renders grid lines in a muted grey color (`AttributedStyle.BLACK | AttributedStyle.BRIGHT`).
   - Employs conditional green bold formatting (`AttributedStyle.GREEN` / `AttributedStyle.BOLD`) to highlight high scores (> 8.0).
+  - Corrected horizontal border line widths for `formatSeasonal` and `formatSuggestions` tables to resolve 1-character column separator misalignment offsets.
 
 ### 2. Implemented Asynchronous Status Spinner
 - **[TerminalSpinner.java](file:///Users/gordonpn/workspace/anime-recommendation/src/main/java/com/gordonpn/anime/util/TerminalSpinner.java)** (New):
