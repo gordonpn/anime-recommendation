@@ -142,8 +142,25 @@ public class RecommendationCommands {
                 hasFlow = true;
             }
             if (decayMonths == null) {
-                flowBuilder.withStringInput("decayMonths")
-                        .name("Enter temporal decay half-life in months (optional, press Enter for none)")
+                flowBuilder.withSingleItemSelector("decayMonthsSelect")
+                        .name("Select temporal decay half-life (how fast older watch history fades)")
+                        .selectItems(List.of(
+                                SelectItem.of("None (no decay)", "none"),
+                                SelectItem.of("Short (6 months - focus on recent taste)", "6"),
+                                SelectItem.of("Medium (12 months - standard decay)", "12"),
+                                SelectItem.of("Long (24 months - slow drift)", "24"),
+                                SelectItem.of("Custom (enter custom half-life)", "custom")
+                        ))
+                        .next(context -> {
+                            String value = context.getValue().orElse("none");
+                            if ("custom".equalsIgnoreCase(value)) {
+                                return "decayMonthsCustom";
+                            }
+                            return null;
+                        })
+                        .and()
+                        .withStringInput("decayMonthsCustom")
+                        .name("Enter custom temporal decay half-life in months (press Enter for none)")
                         .and();
                 hasFlow = true;
             }
@@ -209,11 +226,22 @@ public class RecommendationCommands {
                     }
                 }
                 if (decayMonths == null) {
-                    String decayVal = getSafe(context, "decayMonths");
-                    try {
-                        finalDecayMonths = (decayVal != null && !decayVal.trim().isEmpty()) ? Integer.parseInt(decayVal.trim()) : null;
-                    } catch (NumberFormatException e) {
-                        System.out.println("Invalid number format for decay months. Ignoring decay.");
+                    String selectVal = getSafe(context, "decayMonthsSelect");
+                    if ("custom".equalsIgnoreCase(selectVal)) {
+                        String customVal = getSafe(context, "decayMonthsCustom");
+                        try {
+                            finalDecayMonths = (customVal != null && !customVal.trim().isEmpty()) ? Integer.parseInt(customVal.trim()) : null;
+                        } catch (NumberFormatException e) {
+                            System.out.println("Invalid number format for decay months. Ignoring decay.");
+                            finalDecayMonths = null;
+                        }
+                    } else if (selectVal != null && !selectVal.trim().isEmpty() && !"none".equalsIgnoreCase(selectVal)) {
+                        try {
+                            finalDecayMonths = Integer.parseInt(selectVal.trim());
+                        } catch (NumberFormatException e) {
+                            finalDecayMonths = null;
+                        }
+                    } else {
                         finalDecayMonths = null;
                     }
                 }
