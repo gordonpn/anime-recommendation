@@ -30,6 +30,7 @@ I have completed the presentation layer refactoring of the anime recommendation 
   - Hardened context parsing with an exception-guarded helper `getSafe(...)` that handles missing or bypassed optional inputs without throwing `NoSuchElementException`.
   - Extracted the active `Terminal` instance dynamically and safely via `lineReaderProvider` in a new `getTerminal()` helper method, reverting to the constructor-injected terminal bean as a robust fallback.
   - Guarded all `TerminalSpinner` executions with a `json` flag check. When JSON output format is requested, the spinner thread execution is bypassed, preventing ANSI escape sequence pollution from corrupting stdout streams.
+  - Added a multi-step conditional flow for the `freshnessBoost` parameter prompt: presents layman-friendly options ("None", "Low", "Medium", "High", "Custom") using a `SingleItemSelector` prompt (`freshnessBoostSelect`), and conditionally routes the user to a custom float string input prompt (`freshnessBoostCustom`) only if they select "Custom".
 
 ### 4. Created Distraction-Free Analytics Dashboard
 - **[RecommendationCommands.java](file:///Users/gordonpn/workspace/anime-recommendation/src/main/java/com/gordonpn/anime/commands/RecommendationCommands.java)**:
@@ -43,6 +44,8 @@ I have completed the presentation layer refactoring of the anime recommendation 
   - Updated mock instantiation of the command class with the new dependencies.
   - Stubbed JLine's `Terminal` and `PrintWriter` behavior.
   - Mocked the fluent builder API sequences for Spring Shell `ComponentFlow` to verify interactive prompt configurations.
+  - Added test cases covering both flow branches (preset select vs. custom input routing) and resolved Mockito's strict stubbing errors (`UnnecessaryStubbingException`).
+
 
 ### 6. Terminal Initialization Bug Fix
 - **Removed custom `TuiComponentConfiguration.java`**:

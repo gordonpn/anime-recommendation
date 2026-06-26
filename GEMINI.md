@@ -75,6 +75,8 @@
 - **Wizard Mechanism:** Replaced manual `LineReader.readLine()` parsing helpers with Spring Shell's native `ComponentFlow.Builder`.
 - **Keyboard Navigation:** Uses `SingleItemSelector` for boolean prompts (JSON format select) and multi-choice limits (e.g., limit selector 5/10/20/50) to provide arrow-key menu selections directly inline.
 - **Gated Flow:** Interactive prompts are dynamically built and executed ONLY for command options that are passed as `null`, ensuring non-interactive scripting pipelines and unit tests run seamlessly without blocking on prompts.
+- **Conditional Multi-Step Flow Routing:** The `freshnessBoost` interactive wizard offers preset options ("None", "Low", "Medium", "High", "Custom") using a `SingleItemSelector` prompt (`freshnessBoostSelect`). If the user selects "Custom", a conditional handler `.next(...)` routes them to a secondary `StringInput` prompt (`freshnessBoostCustom`) to enter a custom decimal rate. Preset selections immediately complete the prompt flow without asking for custom input.
+
 
 ### ComponentFlow.Builder Dependency Integration
 - **Relying on Auto-Configuration:** Instead of defining a custom `ComponentFlow.Builder` bean (which overrides Spring Shell's default and can lead to missing properties like `Terminal` or `ResourceLoader` causing `IllegalArgumentException: terminal must be set`), we rely on Spring Shell's native `ComponentFlowAutoConfiguration`. This ensures the builder is correctly configured with all platform components and shell customizers.
