@@ -46,6 +46,12 @@ I have completed the presentation layer refactoring of the anime recommendation 
   - Stubbed JLine's `Terminal` and `PrintWriter` behavior.
   - Mocked the fluent builder API sequences for Spring Shell `ComponentFlow` to verify interactive prompt configurations.
   - Added test cases covering both flow branches (preset select vs. custom input routing) and resolved Mockito's strict stubbing errors (`UnnecessaryStubbingException`).
+  - Added `testRecommendationInteractivePromptsWithFilters` to verify option parsing works when minimum/maximum year filters and specific presets are input.
+- **[ExplanationServiceTests.java](file:///Users/gordonpn/workspace/anime-recommendation/src/test/java/com/gordonpn/anime/service/recommendation/ExplanationServiceTests.java)** (New):
+  - Created a dedicated unit test suite verifying list formatting for zero, some, and exceeding titles.
+- **[TableFormatterTests.java](file:///Users/gordonpn/workspace/anime-recommendation/src/test/java/com/gordonpn/anime/service/recommendation/explanation/TableFormatterTests.java)** (New):
+  - Created a dedicated unit test suite checking ANSI layout alignments, color styling, and title truncation on recommendation tables, seasonal tables, and suggestions tables.
+
 
 
 ### 6. Terminal Initialization Bug Fix
