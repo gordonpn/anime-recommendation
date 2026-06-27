@@ -52,9 +52,15 @@ I have completed the presentation layer refactoring of the anime recommendation 
 - **[TableFormatterTests.java](file:///Users/gordonpn/workspace/anime-recommendation/src/test/java/com/gordonpn/anime/service/recommendation/explanation/TableFormatterTests.java)** (New):
   - Created a dedicated unit test suite checking ANSI layout alignments, color styling, and title truncation on recommendation tables, seasonal tables, and suggestions tables.
 
+### 6. Variety and Uniqueness Improvements in Recommendations
+- **Candidate Franchise Grouping**:
+  - Implemented connected-components BFS grouping for candidate recommendations. 
+  - Recommended sequel/prequel/OVA seasons are consolidated under their most popular representative title, summing their recommendation occurrences and averaging franchise ratings to provide a distinct, diverse recommendations set.
+- **Completed Franchise Exclusion**:
+  - Added the `--exclude-completed` command flag and an interactive selection prompt.
+  - When enabled (`true`), candidate recommendations belonging to any franchise the user has already watched are filtered out, encouraging the exploration of brand new shows.
 
-
-### 6. Terminal Initialization Bug Fix
+### 7. Terminal Initialization Bug Fix
 - **Removed custom `TuiComponentConfiguration.java`**:
   - Investigated the root cause of `java.lang.IllegalArgumentException: terminal must be set`.
   - Identified that the custom `TuiComponentConfiguration.java` definition of the `componentFlowBuilder` bean overrode Spring Shell's standard auto-configured `ComponentFlow.Builder` bean.
