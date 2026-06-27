@@ -85,6 +85,8 @@ public class RecommendationCommands {
             @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum number of recommendations to return") Integer limit,
             @ShellOption(defaultValue = ShellOption.NULL, help = "Minimum release year filter") Integer minYear,
             @ShellOption(defaultValue = ShellOption.NULL, help = "Maximum release year filter") Integer maxYear,
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Exclude shows related to already completed franchises") Boolean excludeCompleted,
+            @ShellOption(defaultValue = ShellOption.NULL, help = "Group candidate recommendations by franchise to prevent duplicates") Boolean groupCandidates,
             @ShellOption(defaultValue = ShellOption.NULL, help = "Decay parameter in months for temporal decay weighting (half-life)") Integer decayMonths,
             @ShellOption(defaultValue = ShellOption.NULL, help = "Freshness boost parameter for release date weighting (decay rate)") Double freshnessBoost) {
         
@@ -93,10 +95,12 @@ public class RecommendationCommands {
         Integer finalLimit = limit;
         Integer finalMinYear = minYear;
         Integer finalMaxYear = maxYear;
+        Boolean finalExcludeCompleted = excludeCompleted;
+        Boolean finalGroupCandidates = groupCandidates;
         Integer finalDecayMonths = decayMonths;
         Double finalFreshnessBoost = freshnessBoost;
 
-        if (userName == null || json == null || limit == null || minYear == null || maxYear == null || decayMonths == null || freshnessBoost == null) {
+        if (userName == null || json == null || limit == null || minYear == null || maxYear == null || excludeCompleted == null || groupCandidates == null || decayMonths == null || freshnessBoost == null) {
             ComponentFlow.Builder flowBuilder = componentFlowBuilder.clone().reset();
             boolean hasFlow = false;
 
@@ -138,6 +142,26 @@ public class RecommendationCommands {
             if (maxYear == null) {
                 flowBuilder.withStringInput("maxYear")
                         .name("Enter maximum release year (optional, press Enter for none)")
+                        .and();
+                hasFlow = true;
+            }
+            if (excludeCompleted == null) {
+                flowBuilder.withSingleItemSelector("excludeCompleted")
+                        .name("Exclude shows related to already completed franchises?")
+                        .selectItems(List.of(
+                                SelectItem.of("No (allow sequels/spinoffs of watched shows)", "false"),
+                                SelectItem.of("Yes (only recommend new franchises)", "true")
+                        ))
+                        .and();
+                hasFlow = true;
+            }
+            if (groupCandidates == null) {
+                flowBuilder.withSingleItemSelector("groupCandidates")
+                        .name("Group candidate recommendations by franchise to prevent duplicates?")
+                        .selectItems(List.of(
+                                SelectItem.of("Yes (recommend unique franchises only)", "true"),
+                                SelectItem.of("No (allow multiple seasons of same candidate show)", "false")
+                        ))
                         .and();
                 hasFlow = true;
             }
@@ -228,6 +252,14 @@ public class RecommendationCommands {
                         finalMaxYear = null;
                     }
                 }
+                if (excludeCompleted == null) {
+                    String val = getSafe(context, "excludeCompleted");
+                    finalExcludeCompleted = "true".equalsIgnoreCase(val);
+                }
+                if (groupCandidates == null) {
+                    String val = getSafe(context, "groupCandidates");
+                    finalGroupCandidates = val == null || "true".equalsIgnoreCase(val);
+                }
                 if (decayMonths == null) {
                     String selectVal = getSafe(context, "decayMonthsSelect");
                     if ("custom".equalsIgnoreCase(selectVal)) {
@@ -278,15 +310,21 @@ public class RecommendationCommands {
         if (finalLimit == null) {
             finalLimit = 10;
         }
+        if (finalExcludeCompleted == null) {
+            finalExcludeCompleted = false;
+        }
+        if (finalGroupCandidates == null) {
+            finalGroupCandidates = true;
+        }
 
         List<RecommendationDetailedResult> recommendations;
         Terminal actTerminal = Boolean.TRUE.equals(finalJson) ? null : getTerminal();
         if (actTerminal != null) {
             try (TerminalSpinner spinner = new TerminalSpinner(actTerminal, "Generating recommendations for " + finalUserName + "...")) {
-                recommendations = recommendationFacade.getRecommendations(finalUserName, finalLimit, finalMinYear, finalMaxYear, finalDecayMonths, finalFreshnessBoost);
+                recommendations = recommendationFacade.getRecommendations(finalUserName, finalLimit, finalMinYear, finalMaxYear, finalDecayMonths, finalFreshnessBoost, finalExcludeCompleted, finalGroupCandidates);
             }
         } else {
-            recommendations = recommendationFacade.getRecommendations(finalUserName, finalLimit, finalMinYear, finalMaxYear, finalDecayMonths, finalFreshnessBoost);
+            recommendations = recommendationFacade.getRecommendations(finalUserName, finalLimit, finalMinYear, finalMaxYear, finalDecayMonths, finalFreshnessBoost, finalExcludeCompleted, finalGroupCandidates);
         }
         
         if (finalJson) {

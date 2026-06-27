@@ -38,18 +38,30 @@ public class RecommendationFacade {
     private final ExplanationService explanationService;
 
     public List<RecommendationDetailedResult> getRecommendations(String userName, int limit) {
-        return getRecommendations(userName, limit, null, null, null, null);
+        return getRecommendations(userName, limit, null, null, null, null, false, true);
     }
 
     public List<RecommendationDetailedResult> getRecommendations(String userName, int limit, Integer minYear, Integer maxYear) {
-        return getRecommendations(userName, limit, minYear, maxYear, null, null);
+        return getRecommendations(userName, limit, minYear, maxYear, null, null, false, true);
     }
 
     public List<RecommendationDetailedResult> getRecommendations(String userName, int limit, Integer minYear, Integer maxYear, Integer decayMonths) {
-        return getRecommendations(userName, limit, minYear, maxYear, decayMonths, null);
+        return getRecommendations(userName, limit, minYear, maxYear, decayMonths, null, false, true);
     }
 
     public List<RecommendationDetailedResult> getRecommendations(String userName, int limit, Integer minYear, Integer maxYear, Integer decayMonths, Double freshnessBoost) {
+        return getRecommendations(userName, limit, minYear, maxYear, decayMonths, freshnessBoost, false, true);
+    }
+
+    public List<RecommendationDetailedResult> getRecommendations(
+            String userName, 
+            int limit, 
+            Integer minYear, 
+            Integer maxYear, 
+            Integer decayMonths, 
+            Double freshnessBoost, 
+            Boolean excludeWatchedFranchises, 
+            Boolean groupCandidates) {
         List<Integer> completedIds = new ArrayList<>();
         Map<Integer, String> completedIdToTitleMap = new HashMap<>();
         Map<Integer, Integer> completedIdToUserScoreMap = new HashMap<>();
@@ -243,6 +255,9 @@ public class RecommendationFacade {
                 Integer recNodeId = recNode.getId();
 
                 if (filteringService.shouldInclude(recNodeId, completedIdsSet, droppedIds)) {
+                    if (Boolean.TRUE.equals(excludeWatchedFranchises) && graph.containsKey(recNodeId)) {
+                        continue;
+                    }
                     int numRecs = recommendation.getNumRecommendations() != null ? recommendation.getNumRecommendations() : 1;
                     
                     // Apply temporal decay if configured
@@ -279,11 +294,13 @@ public class RecommendationFacade {
                 .collect(Collectors.toList());
 
         List<RecommendationDetailedResult> detailedResults = new ArrayList<>();
+        Map<Integer, AnimeDetails> candidateDetailsMap = new HashMap<>();
 
         // 4. Fetch details for top candidates and rank them
         for (Integer candidateId : topCandidateIds) {
             try {
                 AnimeDetails details = animeService.getAnimeById(candidateId);
+                candidateDetailsMap.put(candidateId, details);
 
                 // Filter by release era if minYear or maxYear is specified
                 if (minYear != null || maxYear != null) {
@@ -330,6 +347,162 @@ public class RecommendationFacade {
                 log.error("Failed to rank candidate ID: {}", candidateId, e);
                 throw e;
             }
+        }
+
+        if (groupCandidates == null || groupCandidates) {
+            Map<Integer, Set<Integer>> candidateGraph = new HashMap<>();
+            Map<Integer, RecommendationDetailedResult> candidateResultMap = new HashMap<>();
+
+            for (RecommendationDetailedResult res : detailedResults) {
+                Integer id = res.getId();
+                candidateResultMap.put(id, res);
+                candidateGraph.putIfAbsent(id, new HashSet<>());
+                
+                AnimeDetails details = candidateDetailsMap.get(id);
+                if (details != null) {
+                    List<RelatedAnime> related = details.getRelatedAnime();
+                    if (related != null) {
+                        for (RelatedAnime rel : related) {
+                            if (rel.getNode() != null && rel.getNode().getId() != null) {
+                                Integer relId = rel.getNode().getId();
+                                candidateGraph.putIfAbsent(relId, new HashSet<>());
+                                candidateGraph.get(id).add(relId);
+                                candidateGraph.get(relId).add(id);
+                            }
+                        }
+                    }
+                }
+            }
+
+            Set<Integer> visitedCandidates = new HashSet<>();
+            List<Set<Integer>> candidateComponents = new ArrayList<>();
+
+            for (Integer node : candidateGraph.keySet()) {
+                if (!visitedCandidates.contains(node)) {
+                    Set<Integer> component = new HashSet<>();
+                    Queue<Integer> queue = new LinkedList<>();
+                    queue.add(node);
+                    visitedCandidates.add(node);
+
+                    while (!queue.isEmpty()) {
+                        Integer curr = queue.poll();
+                        component.add(curr);
+                        for (Integer neighbor : candidateGraph.getOrDefault(curr, Collections.emptySet())) {
+                            if (!visitedCandidates.contains(neighbor)) {
+                                visitedCandidates.add(neighbor);
+                                queue.add(neighbor);
+                            }
+                        }
+                    }
+                    candidateComponents.add(component);
+                }
+            }
+
+            List<RecommendationDetailedResult> consolidatedResults = new ArrayList<>();
+
+            for (Set<Integer> component : candidateComponents) {
+                List<Integer> candidatesInComponent = new ArrayList<>();
+                for (Integer id : component) {
+                    if (candidateResultMap.containsKey(id)) {
+                        candidatesInComponent.add(id);
+                    }
+                }
+
+                if (candidatesInComponent.isEmpty()) {
+                    continue;
+                }
+
+                AnimeDetails representativeDetails = null;
+                for (Integer id : component) {
+                    AnimeDetails d = null;
+                    if (candidateDetailsMap.containsKey(id)) {
+                        d = candidateDetailsMap.get(id);
+                    } else {
+                        try {
+                            d = animeService.getAnimeById(id);
+                        } catch (Exception e) {
+                            log.debug("Skipping relation graph bridge detail fetch failure for candidate ID: {}", id);
+                        }
+                    }
+                    if (d == null) continue;
+                    if (representativeDetails == null) {
+                        representativeDetails = d;
+                    } else {
+                        Integer pRep = representativeDetails.getPopularity();
+                        Integer pD = d.getPopularity();
+                        if (pD != null && (pRep == null || pD < pRep)) {
+                            representativeDetails = d;
+                        }
+                    }
+                }
+
+                Integer repId = representativeDetails != null ? representativeDetails.getId() : candidatesInComponent.get(0);
+                String repTitle = representativeDetails != null ? representativeDetails.getDisplayTitle() : "Unknown Series";
+                Integer repPopularity = representativeDetails != null ? representativeDetails.getPopularity() : null;
+
+                double totalOccurrence = 0.0;
+                List<String> pooledSources = new ArrayList<>();
+                Double repRating = representativeDetails != null ? representativeDetails.getMean() : null;
+
+                for (Integer id : candidatesInComponent) {
+                    RecommendationDetailedResult res = candidateResultMap.get(id);
+                    if (res != null) {
+                        totalOccurrence += res.getOccurrence();
+                    }
+                    List<String> sources = recommendationSourcesMap.get(id);
+                    if (sources != null) {
+                        for (String src : sources) {
+                            if (!pooledSources.contains(src)) {
+                                pooledSources.add(src);
+                            }
+                        }
+                    }
+                }
+
+                if (repRating == null) {
+                    double sumRating = 0.0;
+                    int countRating = 0;
+                    for (Integer id : candidatesInComponent) {
+                        RecommendationDetailedResult res = candidateResultMap.get(id);
+                        if (res != null && res.getMeanRating() != null) {
+                            sumRating += res.getMeanRating();
+                            countRating++;
+                        }
+                    }
+                    repRating = countRating > 0 ? (sumRating / countRating) : null;
+                }
+
+                Double overallFranchiseRating = calculateOverallFranchiseRating(representativeDetails);
+                if (overallFranchiseRating == null) {
+                    overallFranchiseRating = repRating;
+                }
+
+                double consolidatedScore = rankingService.calculateScore(totalOccurrence, overallFranchiseRating, repPopularity);
+                if (freshnessBoost != null && freshnessBoost > 0) {
+                    if (representativeDetails != null) {
+                        Integer startYear = representativeDetails.getStartYear();
+                        if (startYear != null) {
+                            double yearsSinceRelease = Math.max(0.0, java.time.Year.now().getValue() - startYear);
+                            double boostFactor = Math.exp(-freshnessBoost * yearsSinceRelease);
+                            consolidatedScore = consolidatedScore * boostFactor;
+                        }
+                    }
+                }
+
+                String consolidatedExplanation = explanationService.generateExplanation(totalOccurrence, pooledSources);
+
+                consolidatedResults.add(RecommendationDetailedResult.builder()
+                        .id(repId)
+                        .title(repTitle)
+                        .score(consolidatedScore)
+                        .occurrence(totalOccurrence)
+                        .meanRating(overallFranchiseRating)
+                        .popularity(repPopularity)
+                        .explanation(consolidatedExplanation)
+                        .build());
+            }
+
+            detailedResults = consolidatedResults;
         }
 
         // 5. Final sorting by score descending and return

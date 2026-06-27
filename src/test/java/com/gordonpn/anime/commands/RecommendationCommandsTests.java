@@ -133,24 +133,14 @@ public class RecommendationCommandsTests {
         assertTrue(output.contains("8.90"));
     }
 
-    @Test
-    public void testRecommendationInteractivePrompts() throws Exception {
-        var cloneMock = org.mockito.Mockito.mock(ComponentFlow.Builder.class);
-        var resetMock = org.mockito.Mockito.mock(ComponentFlow.Builder.class);
+    private void mockCommonFlowBuilders(
+            org.springframework.shell.component.flow.ComponentFlow.Builder resetMock,
+            org.springframework.shell.component.flow.StringInputSpec userNameSpecMock,
+            org.springframework.shell.component.flow.SingleItemSelectorSpec jsonSpecMock,
+            org.springframework.shell.component.flow.SingleItemSelectorSpec limitSpecMock,
+            org.springframework.shell.component.flow.StringInputSpec minYearSpecMock,
+            org.springframework.shell.component.flow.StringInputSpec maxYearSpecMock) {
         
-        var userNameSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.StringInputSpec.class);
-        var jsonSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.SingleItemSelectorSpec.class);
-        var limitSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.SingleItemSelectorSpec.class);
-        var minYearSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.StringInputSpec.class);
-        var maxYearSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.StringInputSpec.class);
-        var decayMonthsSelectSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.SingleItemSelectorSpec.class);
-        var decayMonthsCustomSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.StringInputSpec.class);
-        var freshnessBoostSelectSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.SingleItemSelectorSpec.class);
-        var freshnessBoostCustomSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.StringInputSpec.class);
-
-        when(componentFlowBuilder.clone()).thenReturn(cloneMock);
-        when(cloneMock.reset()).thenReturn(resetMock);
-
         when(resetMock.withStringInput("userName")).thenReturn(userNameSpecMock);
         when(userNameSpecMock.name(anyString())).thenReturn(userNameSpecMock);
         when(userNameSpecMock.defaultValue(anyString())).thenReturn(userNameSpecMock);
@@ -173,6 +163,39 @@ public class RecommendationCommandsTests {
         when(resetMock.withStringInput("maxYear")).thenReturn(maxYearSpecMock);
         lenient().when(maxYearSpecMock.name(anyString())).thenReturn(maxYearSpecMock);
         lenient().when(maxYearSpecMock.and()).thenReturn(resetMock);
+
+        var excludeCompletedSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.SingleItemSelectorSpec.class);
+        when(resetMock.withSingleItemSelector("excludeCompleted")).thenReturn(excludeCompletedSpecMock);
+        lenient().when(excludeCompletedSpecMock.name(anyString())).thenReturn(excludeCompletedSpecMock);
+        lenient().when(excludeCompletedSpecMock.selectItems(anyList())).thenReturn(excludeCompletedSpecMock);
+        lenient().when(excludeCompletedSpecMock.and()).thenReturn(resetMock);
+
+        var groupCandidatesSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.SingleItemSelectorSpec.class);
+        when(resetMock.withSingleItemSelector("groupCandidates")).thenReturn(groupCandidatesSpecMock);
+        lenient().when(groupCandidatesSpecMock.name(anyString())).thenReturn(groupCandidatesSpecMock);
+        lenient().when(groupCandidatesSpecMock.selectItems(anyList())).thenReturn(groupCandidatesSpecMock);
+        lenient().when(groupCandidatesSpecMock.and()).thenReturn(resetMock);
+    }
+
+    @Test
+    public void testRecommendationInteractivePrompts() throws Exception {
+        var cloneMock = org.mockito.Mockito.mock(ComponentFlow.Builder.class);
+        var resetMock = org.mockito.Mockito.mock(ComponentFlow.Builder.class);
+        
+        var userNameSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.StringInputSpec.class);
+        var jsonSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.SingleItemSelectorSpec.class);
+        var limitSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.SingleItemSelectorSpec.class);
+        var minYearSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.StringInputSpec.class);
+        var maxYearSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.StringInputSpec.class);
+        var decayMonthsSelectSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.SingleItemSelectorSpec.class);
+        var decayMonthsCustomSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.StringInputSpec.class);
+        var freshnessBoostSelectSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.SingleItemSelectorSpec.class);
+        var freshnessBoostCustomSpecMock = org.mockito.Mockito.mock(org.springframework.shell.component.flow.StringInputSpec.class);
+
+        when(componentFlowBuilder.clone()).thenReturn(cloneMock);
+        when(cloneMock.reset()).thenReturn(resetMock);
+
+        mockCommonFlowBuilders(resetMock, userNameSpecMock, jsonSpecMock, limitSpecMock, minYearSpecMock, maxYearSpecMock);
 
         when(resetMock.withSingleItemSelector("decayMonthsSelect")).thenReturn(decayMonthsSelectSpecMock);
         lenient().when(decayMonthsSelectSpecMock.name(anyString())).thenReturn(decayMonthsSelectSpecMock);
@@ -214,9 +237,9 @@ public class RecommendationCommandsTests {
         List<RecommendationDetailedResult> recs = List.of(
                 RecommendationDetailedResult.builder().id(12).title("Test").score(10.0).build()
         );
-        when(recommendationFacade.getRecommendations("@me", 5, null, null, null, 0.5)).thenReturn(recs);
+        when(recommendationFacade.getRecommendations("@me", 5, null, null, null, 0.5, false, true)).thenReturn(recs);
 
-        String result = recommendationCommands.recommendation(null, null, null, null, null, null, null);
+        String result = recommendationCommands.recommendation(null, null, null, null, null, null, null, null, null);
 
         assertNotNull(result);
         assertTrue(result.contains("\"id\":12"));
@@ -241,28 +264,7 @@ public class RecommendationCommandsTests {
         when(componentFlowBuilder.clone()).thenReturn(cloneMock);
         when(cloneMock.reset()).thenReturn(resetMock);
 
-        when(resetMock.withStringInput("userName")).thenReturn(userNameSpecMock);
-        when(userNameSpecMock.name(anyString())).thenReturn(userNameSpecMock);
-        when(userNameSpecMock.defaultValue(anyString())).thenReturn(userNameSpecMock);
-        when(userNameSpecMock.and()).thenReturn(resetMock);
-
-        when(resetMock.withSingleItemSelector("json")).thenReturn(jsonSpecMock);
-        lenient().when(jsonSpecMock.name(anyString())).thenReturn(jsonSpecMock);
-        lenient().when(jsonSpecMock.selectItems(anyList())).thenReturn(jsonSpecMock);
-        lenient().when(jsonSpecMock.and()).thenReturn(resetMock);
-
-        when(resetMock.withSingleItemSelector("limit")).thenReturn(limitSpecMock);
-        lenient().when(limitSpecMock.name(anyString())).thenReturn(limitSpecMock);
-        lenient().when(limitSpecMock.selectItems(anyList())).thenReturn(limitSpecMock);
-        lenient().when(limitSpecMock.and()).thenReturn(resetMock);
-
-        when(resetMock.withStringInput("minYear")).thenReturn(minYearSpecMock);
-        lenient().when(minYearSpecMock.name(anyString())).thenReturn(minYearSpecMock);
-        lenient().when(minYearSpecMock.and()).thenReturn(resetMock);
-
-        when(resetMock.withStringInput("maxYear")).thenReturn(maxYearSpecMock);
-        lenient().when(maxYearSpecMock.name(anyString())).thenReturn(maxYearSpecMock);
-        lenient().when(maxYearSpecMock.and()).thenReturn(resetMock);
+        mockCommonFlowBuilders(resetMock, userNameSpecMock, jsonSpecMock, limitSpecMock, minYearSpecMock, maxYearSpecMock);
 
         when(resetMock.withSingleItemSelector("decayMonthsSelect")).thenReturn(decayMonthsSelectSpecMock);
         lenient().when(decayMonthsSelectSpecMock.name(anyString())).thenReturn(decayMonthsSelectSpecMock);
@@ -305,9 +307,9 @@ public class RecommendationCommandsTests {
         List<RecommendationDetailedResult> recs = List.of(
                 RecommendationDetailedResult.builder().id(12).title("Test").score(10.0).build()
         );
-        when(recommendationFacade.getRecommendations("@me", 5, null, null, null, 0.3)).thenReturn(recs);
+        when(recommendationFacade.getRecommendations("@me", 5, null, null, null, 0.3, false, true)).thenReturn(recs);
 
-        String result = recommendationCommands.recommendation(null, null, null, null, null, null, null);
+        String result = recommendationCommands.recommendation(null, null, null, null, null, null, null, null, null);
 
         assertNotNull(result);
         assertTrue(result.contains("\"id\":12"));
@@ -332,28 +334,7 @@ public class RecommendationCommandsTests {
         when(componentFlowBuilder.clone()).thenReturn(cloneMock);
         when(cloneMock.reset()).thenReturn(resetMock);
 
-        when(resetMock.withStringInput("userName")).thenReturn(userNameSpecMock);
-        when(userNameSpecMock.name(anyString())).thenReturn(userNameSpecMock);
-        when(userNameSpecMock.defaultValue(anyString())).thenReturn(userNameSpecMock);
-        when(userNameSpecMock.and()).thenReturn(resetMock);
-
-        when(resetMock.withSingleItemSelector("json")).thenReturn(jsonSpecMock);
-        lenient().when(jsonSpecMock.name(anyString())).thenReturn(jsonSpecMock);
-        lenient().when(jsonSpecMock.selectItems(anyList())).thenReturn(jsonSpecMock);
-        lenient().when(jsonSpecMock.and()).thenReturn(resetMock);
-
-        when(resetMock.withSingleItemSelector("limit")).thenReturn(limitSpecMock);
-        lenient().when(limitSpecMock.name(anyString())).thenReturn(limitSpecMock);
-        lenient().when(limitSpecMock.selectItems(anyList())).thenReturn(limitSpecMock);
-        lenient().when(limitSpecMock.and()).thenReturn(resetMock);
-
-        when(resetMock.withStringInput("minYear")).thenReturn(minYearSpecMock);
-        lenient().when(minYearSpecMock.name(anyString())).thenReturn(minYearSpecMock);
-        lenient().when(minYearSpecMock.and()).thenReturn(resetMock);
-
-        when(resetMock.withStringInput("maxYear")).thenReturn(maxYearSpecMock);
-        lenient().when(maxYearSpecMock.name(anyString())).thenReturn(maxYearSpecMock);
-        lenient().when(maxYearSpecMock.and()).thenReturn(resetMock);
+        mockCommonFlowBuilders(resetMock, userNameSpecMock, jsonSpecMock, limitSpecMock, minYearSpecMock, maxYearSpecMock);
 
         when(resetMock.withSingleItemSelector("decayMonthsSelect")).thenReturn(decayMonthsSelectSpecMock);
         lenient().when(decayMonthsSelectSpecMock.name(anyString())).thenReturn(decayMonthsSelectSpecMock);
@@ -396,9 +377,9 @@ public class RecommendationCommandsTests {
         List<RecommendationDetailedResult> recs = List.of(
                 RecommendationDetailedResult.builder().id(12).title("Test").score(10.0).build()
         );
-        when(recommendationFacade.getRecommendations("@me", 5, null, null, 18, 0.5)).thenReturn(recs);
+        when(recommendationFacade.getRecommendations("@me", 5, null, null, 18, 0.5, false, true)).thenReturn(recs);
 
-        String result = recommendationCommands.recommendation(null, null, null, null, null, null, null);
+        String result = recommendationCommands.recommendation(null, null, null, null, null, null, null, null, null);
 
         assertNotNull(result);
         assertTrue(result.contains("\"id\":12"));
@@ -423,28 +404,7 @@ public class RecommendationCommandsTests {
         when(componentFlowBuilder.clone()).thenReturn(cloneMock);
         when(cloneMock.reset()).thenReturn(resetMock);
 
-        when(resetMock.withStringInput("userName")).thenReturn(userNameSpecMock);
-        when(userNameSpecMock.name(anyString())).thenReturn(userNameSpecMock);
-        when(userNameSpecMock.defaultValue(anyString())).thenReturn(userNameSpecMock);
-        when(userNameSpecMock.and()).thenReturn(resetMock);
-
-        when(resetMock.withSingleItemSelector("json")).thenReturn(jsonSpecMock);
-        lenient().when(jsonSpecMock.name(anyString())).thenReturn(jsonSpecMock);
-        lenient().when(jsonSpecMock.selectItems(anyList())).thenReturn(jsonSpecMock);
-        lenient().when(jsonSpecMock.and()).thenReturn(resetMock);
-
-        when(resetMock.withSingleItemSelector("limit")).thenReturn(limitSpecMock);
-        lenient().when(limitSpecMock.name(anyString())).thenReturn(limitSpecMock);
-        lenient().when(limitSpecMock.selectItems(anyList())).thenReturn(limitSpecMock);
-        lenient().when(limitSpecMock.and()).thenReturn(resetMock);
-
-        when(resetMock.withStringInput("minYear")).thenReturn(minYearSpecMock);
-        lenient().when(minYearSpecMock.name(anyString())).thenReturn(minYearSpecMock);
-        lenient().when(minYearSpecMock.and()).thenReturn(resetMock);
-
-        when(resetMock.withStringInput("maxYear")).thenReturn(maxYearSpecMock);
-        lenient().when(maxYearSpecMock.name(anyString())).thenReturn(maxYearSpecMock);
-        lenient().when(maxYearSpecMock.and()).thenReturn(resetMock);
+        mockCommonFlowBuilders(resetMock, userNameSpecMock, jsonSpecMock, limitSpecMock, minYearSpecMock, maxYearSpecMock);
 
         when(resetMock.withSingleItemSelector("decayMonthsSelect")).thenReturn(decayMonthsSelectSpecMock);
         lenient().when(decayMonthsSelectSpecMock.name(anyString())).thenReturn(decayMonthsSelectSpecMock);
@@ -480,15 +440,17 @@ public class RecommendationCommandsTests {
         when(contextMock.get("limit")).thenReturn("5");
         when(contextMock.get("minYear")).thenReturn("2020");
         when(contextMock.get("maxYear")).thenReturn("2025");
+        when(contextMock.get("excludeCompleted")).thenReturn("true");
+        when(contextMock.get("groupCandidates")).thenReturn("false");
         when(contextMock.get("decayMonthsSelect")).thenReturn("12");
         when(contextMock.get("freshnessBoostSelect")).thenReturn("0.2");
 
         List<RecommendationDetailedResult> recs = List.of(
                 RecommendationDetailedResult.builder().id(12).title("Test").score(10.0).build()
         );
-        when(recommendationFacade.getRecommendations("@me", 5, 2020, 2025, 12, 0.2)).thenReturn(recs);
+        when(recommendationFacade.getRecommendations("@me", 5, 2020, 2025, 12, 0.2, true, false)).thenReturn(recs);
 
-        String result = recommendationCommands.recommendation(null, null, null, null, null, null, null);
+        String result = recommendationCommands.recommendation(null, null, null, null, null, null, null, null, null);
 
         assertNotNull(result);
         assertTrue(result.contains("\"id\":12"));

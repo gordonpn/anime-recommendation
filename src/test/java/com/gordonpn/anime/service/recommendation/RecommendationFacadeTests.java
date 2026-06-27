@@ -488,4 +488,152 @@ public class RecommendationFacadeTests {
         assertEquals("Old Recommended", results.get(1).getTitle());
         assertTrue(results.get(1).getScore() > 0.1 && results.get(1).getScore() < 0.12);
     }
+
+    @Test
+    public void testExcludeCompletedFranchises() throws Exception {
+        // Setup completed show 101
+        UserAnimeListEntity c1 = new UserAnimeListEntity();
+        c1.setAnimeId(101);
+        c1.setStatus(ListStatusType.COMPLETED);
+        c1.setUserScore(7);
+
+        when(userAnimeListRepository.findByStatus(ListStatusType.COMPLETED))
+                .thenReturn(List.of(c1));
+        when(userAnimeListRepository.findByStatus(ListStatusType.DROPPED))
+                .thenReturn(Collections.emptyList());
+
+        // Completed Show 101 details (recommends candidate 102)
+        AnimeDetails details1 = new AnimeDetails();
+        details1.setId(101);
+        details1.setTitle("AOT Part 1");
+        
+        // 101 is related to 102 (completed franchise relation graph)
+        RelatedAnime rel = new RelatedAnime();
+        Node relNode = new Node();
+        relNode.setId(102);
+        rel.setNode(relNode);
+        details1.setRelatedAnime(List.of(rel));
+
+        Recommendation rec = new Recommendation();
+        rec.setNumRecommendations(3);
+        Node recNode = new Node();
+        recNode.setId(102);
+        recNode.setTitle("AOT Part 2");
+        rec.setNode(recNode);
+        details1.setRecommendations(List.of(rec));
+
+        when(animeService.getAnimeById(101)).thenReturn(details1);
+
+        // When excludeCompleted is true, 102 is excluded because it's related to 101
+        List<RecommendationDetailedResult> resultsExcluded = recommendationFacade.getRecommendations(
+                "@me", 10, null, null, null, null, true, false);
+        assertEquals(0, resultsExcluded.size());
+
+        // When excludeCompleted is false, 102 is included
+        when(filteringService.shouldInclude(eq(102), anySet(), anySet())).thenReturn(true);
+        AnimeDetails candidateDetails = new AnimeDetails();
+        candidateDetails.setId(102);
+        candidateDetails.setTitle("AOT Part 2");
+        candidateDetails.setMean(8.5);
+        candidateDetails.setPopularity(200);
+        when(animeService.getAnimeById(102)).thenReturn(candidateDetails);
+
+        when(rankingService.calculateScore(anyDouble(), any(), any())).thenReturn(8.5);
+        when(explanationService.generateExplanation(anyDouble(), anyList())).thenReturn("Explained!");
+
+        List<RecommendationDetailedResult> resultsIncluded = recommendationFacade.getRecommendations(
+                "@me", 10, null, null, null, null, false, false);
+        assertEquals(1, resultsIncluded.size());
+        assertEquals("AOT Part 2", resultsIncluded.get(0).getTitle());
+    }
+
+    @Test
+    public void testCandidateFranchiseGrouping() throws Exception {
+        // Setup completed show 101
+        UserAnimeListEntity c1 = new UserAnimeListEntity();
+        c1.setAnimeId(101);
+        c1.setStatus(ListStatusType.COMPLETED);
+        c1.setUserScore(7);
+
+        when(userAnimeListRepository.findByStatus(ListStatusType.COMPLETED))
+                .thenReturn(List.of(c1));
+        when(userAnimeListRepository.findByStatus(ListStatusType.DROPPED))
+                .thenReturn(Collections.emptyList());
+
+        AnimeDetails details1 = new AnimeDetails();
+        details1.setId(101);
+        details1.setTitle("Completed Show");
+
+        // Completed Show 101 recommends candidate 201 and candidate 202
+        Recommendation rec1 = new Recommendation();
+        rec1.setNumRecommendations(3);
+        Node recNode1 = new Node();
+        recNode1.setId(201);
+        recNode1.setTitle("Season 1");
+        rec1.setNode(recNode1);
+
+        Recommendation rec2 = new Recommendation();
+        rec2.setNumRecommendations(3);
+        Node recNode2 = new Node();
+        recNode2.setId(202);
+        recNode2.setTitle("Season 2");
+        rec2.setNode(recNode2);
+
+        details1.setRecommendations(List.of(rec1, rec2));
+        when(animeService.getAnimeById(101)).thenReturn(details1);
+
+        when(filteringService.shouldInclude(eq(201), anySet(), anySet())).thenReturn(true);
+        when(filteringService.shouldInclude(eq(202), anySet(), anySet())).thenReturn(true);
+
+        // Candidate 201: Season 1 (more popular: popularity 100)
+        AnimeDetails candidate1 = new AnimeDetails();
+        candidate1.setId(201);
+        candidate1.setTitle("Season 1");
+        candidate1.setMean(8.0);
+        candidate1.setPopularity(100);
+        
+        RelatedAnime relTo2 = new RelatedAnime();
+        Node node2 = new Node();
+        node2.setId(202);
+        relTo2.setNode(node2);
+        relTo2.setRelationType("sequel");
+        candidate1.setRelatedAnime(List.of(relTo2));
+
+        // Candidate 202: Season 2 (less popular: popularity 200)
+        AnimeDetails candidate2 = new AnimeDetails();
+        candidate2.setId(202);
+        candidate2.setTitle("Season 2");
+        candidate2.setMean(8.2);
+        candidate2.setPopularity(200);
+
+        RelatedAnime relTo1 = new RelatedAnime();
+        Node node1 = new Node();
+        node1.setId(201);
+        relTo1.setNode(node1);
+        relTo1.setRelationType("prequel");
+        candidate2.setRelatedAnime(List.of(relTo1));
+
+        when(animeService.getAnimeById(201)).thenReturn(candidate1);
+        when(animeService.getAnimeById(202)).thenReturn(candidate2);
+
+        // Mock ranking & explanations
+        when(rankingService.calculateScore(anyDouble(), any(), any())).thenAnswer(invocation -> {
+            // return occurrence as score
+            return (double) invocation.getArgument(0);
+        });
+        when(explanationService.generateExplanation(anyDouble(), anyList())).thenReturn("Explained!");
+
+        // Execute with groupCandidates = true
+        List<RecommendationDetailedResult> results = recommendationFacade.getRecommendations(
+                "@me", 10, null, null, null, null, false, true);
+
+        // Should consolidate 201 and 202 into a single result under the more popular "Season 1" (ID: 201)
+        assertNotNull(results);
+        assertEquals(1, results.size());
+        assertEquals(201, results.get(0).getId());
+        assertEquals("Season 1", results.get(0).getTitle());
+        // Consolidated occurrence should be 3.0 + 3.0 = 6.0
+        assertEquals(6.0, results.get(0).getOccurrence(), 0.01);
+        assertEquals(6.0, results.get(0).getScore(), 0.01);
+    }
 }
