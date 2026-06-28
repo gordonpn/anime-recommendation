@@ -57,6 +57,7 @@ public class RecommendationCommands {
     private final ComponentFlow.Builder componentFlowBuilder;
     private final Terminal terminal;
     private final TableFormatter tableFormatter;
+    private final org.springframework.shell.component.view.TerminalUIBuilder terminalUiBuilder;
 
     public RecommendationCommands(
             @Qualifier("objectMapper") ObjectMapper objectMapper,
@@ -66,7 +67,8 @@ public class RecommendationCommands {
             ObjectProvider<LineReader> lineReaderProvider,
             ComponentFlow.Builder componentFlowBuilder,
             Terminal terminal,
-            TableFormatter tableFormatter
+            TableFormatter tableFormatter,
+            org.springframework.shell.component.view.TerminalUIBuilder terminalUiBuilder
     ) {
         this.objectMapper = objectMapper;
         this.recommendationService = recommendationService;
@@ -76,6 +78,7 @@ public class RecommendationCommands {
         this.componentFlowBuilder = componentFlowBuilder;
         this.terminal = terminal;
         this.tableFormatter = tableFormatter;
+        this.terminalUiBuilder = terminalUiBuilder;
     }
 
     @ShellMethod(key = "recommendation", value = "Generate personalized anime recommendations based on completed shows. Groups series, applies user rating weights, and averages candidate franchise scores.")
@@ -815,65 +818,97 @@ public class RecommendationCommands {
             finalUserName = "@me";
         }
 
-        org.jline.terminal.Attributes originalAttributes = terminal.enterRawMode();
-        PrintWriter writer = terminal.writer();
-        try {
-            writer.print("\033[?1049h");
-            writer.print("\033[?25l");
-            writer.flush();
+        // 1. Fetch backend models context ahead of time
+        List<RecommendationDetailedResult> recommendations = recommendationFacade.getRecommendations(finalUserName, 25);
 
-            boolean running = true;
-            boolean needsRefresh = true;
-            List<RecommendationDetailedResult> recommendations = null;
+        // 2. Initialize the blocking Terminal UI engine loop runner
+        org.springframework.shell.component.view.TerminalUI ui = terminalUiBuilder.build();
 
-            while (running) {
-                if (needsRefresh) {
-                    writer.print("\033[H\033[2J");
-                    writer.println("Loading recommendations for " + finalUserName + "...");
-                    writer.flush();
-                    try {
-                        recommendations = recommendationFacade.getRecommendations(finalUserName, 10, null, null, null, null);
-                    } catch (Exception e) {
-                        writer.print("\033[H\033[2J");
-                        writer.println("Error fetching recommendations: " + e.getMessage());
-                        writer.println("\nPress [q] to exit, [r] to retry.");
-                        writer.flush();
-                        recommendations = null;
-                    }
-                    needsRefresh = false;
-                }
+        // 3. Create the structural master container layout (GridView split)
+        org.springframework.shell.component.view.control.GridView mainGrid = 
+                new org.springframework.shell.component.view.control.GridView();
 
-                if (recommendations != null) {
-                    writer.print("\033[H\033[2J");
-                    writer.println("==============================================================================================================");
-                    writer.println("                               ANIME RECOMMENDATIONS ANALYTICS DASHBOARD");
-                    writer.println("==============================================================================================================");
+        // Configure row and column size mappings (split view)
+        mainGrid.setRowSize(new int[]{0});
+        mainGrid.setColumnSize(new int[]{30, 0});
 
-                    String formattedTable = tableFormatter.formatRecommendations(recommendations, finalUserName);
-                    writer.print(formattedTable);
+        // 4. Set up the Left Panel sidebar view box
+        org.springframework.shell.component.view.control.BoxView sidebar = 
+                new org.springframework.shell.component.view.control.BoxView();
+        sidebar.setShowBorder(true);
+        sidebar.setTitle("Watchlist Profile Summary");
+        
+        final String displayUser = finalUserName;
+        sidebar.setDrawFunction((screen, rect) -> {
+            screen.writerBuilder().build().text("• Profile: " + displayUser, rect.x() + 2, rect.y() + 2);
+            screen.writerBuilder().build().text("• Algorithm: Multi-Signal", rect.x() + 2, rect.y() + 3);
+            screen.writerBuilder().build().text("• Pool Count: " + recommendations.size(), rect.x() + 2, rect.y() + 4);
+            return rect;
+        });
 
-                    writer.println("\n [r] Refresh Data  |  [q] Exit Dashboard");
-                    writer.flush();
-                }
+        // 5. Set up the Right Panel scrollable index list
+        org.springframework.shell.component.view.control.ListView<RecommendationDetailedResult> recommendationListView = 
+                new org.springframework.shell.component.view.control.ListView<>();
+        recommendationListView.setShowBorder(true);
+        recommendationListView.setTitle("Personalized Recommendations Engine Matrix");
 
-                try {
-                    int ch = terminal.reader().read(200); // 200 ms timeout
-                    if (ch == 'q' || ch == 'Q') {
-                        running = false;
-                    } else if (ch == 'r' || ch == 'R') {
-                        needsRefresh = true;
-                    }
-                } catch (IOException e) {
-                    log.error("Error reading terminal input", e);
-                    running = false;
+        // Bind list content records
+        recommendationListView.setItems(recommendations);
+
+        class CustomListCell extends org.springframework.shell.component.view.control.cell.AbstractListCell<RecommendationDetailedResult> {
+            public CustomListCell(RecommendationDetailedResult item, org.springframework.shell.component.view.control.ListView.ItemStyle itemStyle) {
+                super(item, itemStyle);
+            }
+
+            @Override
+            public void draw(org.springframework.shell.component.view.screen.Screen screen) {
+                super.draw(screen);
+                org.springframework.shell.geom.Rectangle rect = getRect();
+                RecommendationDetailedResult item = getItem();
+                if (item != null && rect != null) {
+                    int color = item.getScore() > 8.5 ? org.jline.utils.AttributedStyle.GREEN : org.jline.utils.AttributedStyle.CYAN;
+                    int style = item.getScore() > 8.5 ? (int) org.jline.utils.AttributedStyle.BOLD.getStyle() : 0;
+                    screen.writerBuilder()
+                            .color(color)
+                            .style(style)
+                            .build()
+                            .text(String.format("[Score: %5.2f] %s", item.getScore(), item.getTitle()), rect.x() + 1, rect.y());
                 }
             }
-        } finally {
-            terminal.setAttributes(originalAttributes);
-            writer.print("\033[?25h");
-            writer.print("\033[?1049l");
-            writer.flush();
         }
+
+        recommendationListView.setCellFactory((list, item) -> new CustomListCell(item, list.getItemStyle()));
+
+        // 6. Nest components into layout cells and map the exit key binding sequence
+        mainGrid.addItem(sidebar, 0, 0, 1, 1, 0, 0);
+        mainGrid.addItem(recommendationListView, 0, 1, 1, 1, 0, 0);
+
+        ui.setRoot(mainGrid, true);
+
+        // Configure event-driven loop breaks
+        ui.configure(mainGrid);
+        ui.configure(recommendationListView);
+        ui.configure(sidebar);
+
+        Runnable exitAction = () -> {
+            if (ui.getEventLoop() instanceof org.springframework.shell.component.view.event.DefaultEventLoop del) {
+                del.destroy();
+            }
+        };
+
+        // Bind terminal exit logic to a standard hotkey event listener loop
+        mainGrid.shortcut(Integer.valueOf('q'), exitAction);
+        mainGrid.shortcut(Integer.valueOf('Q'), exitAction);
+        recommendationListView.shortcut(Integer.valueOf('q'), exitAction);
+        recommendationListView.shortcut(Integer.valueOf('Q'), exitAction);
+        sidebar.shortcut(Integer.valueOf('q'), exitAction);
+        sidebar.shortcut(Integer.valueOf('Q'), exitAction);
+
+        // Focus ListView to enable arrow key navigation
+        ui.setFocus(recommendationListView);
+
+        // Run full reactive runtime loop processing phase
+        ui.run();
     }
 
     private String getSafe(org.springframework.shell.component.context.ComponentContext<?> context, String key) {

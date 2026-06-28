@@ -45,6 +45,8 @@ public class RecommendationCommandsTests {
     private ComponentFlow.Builder componentFlowBuilder;
     @Mock
     private Terminal terminal;
+    @Mock
+    private org.springframework.shell.component.view.TerminalUIBuilder terminalUiBuilder;
 
     private final TableFormatter tableFormatter = new TableFormatter();
     private RecommendationCommands recommendationCommands;
@@ -62,7 +64,8 @@ public class RecommendationCommandsTests {
                 null,
                 componentFlowBuilder,
                 terminal,
-                tableFormatter
+                tableFormatter,
+                terminalUiBuilder
         );
     }
 
@@ -455,5 +458,24 @@ public class RecommendationCommandsTests {
         assertNotNull(result);
         assertTrue(result.contains("\"id\":12"));
         assertTrue(result.contains("\"title\":\"Test\""));
+    }
+
+    @Test
+    public void testDashboard() {
+        var uiMock = org.mockito.Mockito.mock(org.springframework.shell.component.view.TerminalUI.class);
+        lenient().when(terminalUiBuilder.build()).thenReturn(uiMock);
+
+        var eventLoopMock = org.mockito.Mockito.mock(org.springframework.shell.component.view.event.DefaultEventLoop.class);
+        lenient().when(uiMock.getEventLoop()).thenReturn(eventLoopMock);
+
+        List<RecommendationDetailedResult> recs = List.of(
+                RecommendationDetailedResult.builder().id(12).title("Test").score(10.0).build()
+        );
+        lenient().when(recommendationFacade.getRecommendations("@me", 25)).thenReturn(recs);
+
+        recommendationCommands.dashboard("@me");
+
+        org.mockito.Mockito.verify(uiMock).setRoot(org.mockito.ArgumentMatchers.any(org.springframework.shell.component.view.control.GridView.class), org.mockito.ArgumentMatchers.eq(true));
+        org.mockito.Mockito.verify(uiMock).run();
     }
 }
