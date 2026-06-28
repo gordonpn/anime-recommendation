@@ -74,6 +74,13 @@ I have completed the presentation layer refactoring of the anime recommendation 
   - Implemented cell factory customization (`CustomListCell` extending `AbstractListCell`) utilizing JLine's color and style parameters for highlights.
   - Mapped exit keys (`[q]` and `[Q]`) to invoke `.destroy()` on the event loop, ensuring clean restoration of standard terminal buffing.
 
+### 9. Logging Redirection to File Appender
+- **Quiet Console Logging**:
+  - Implemented `logback-spring.xml` in the resources directory to redirect all console log messages.
+  - Root logs are written at the `WARN` level and our application package logs (`com.gordonpn`) at the `DEBUG` level.
+  - Logs are routed exclusively to `recommendation.log` with a file size rolling policy, disabling the console appender completely.
+  - This prevents background or initialization logs from polluting standard output and corrupting the raw TUI screen buffers during interactive dashboard execution.
+
 ---
 
 ## Verification & Validation Results
