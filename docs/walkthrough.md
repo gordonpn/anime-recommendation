@@ -67,6 +67,13 @@ I have completed the presentation layer refactoring of the anime recommendation 
   - The custom bean instantiated a raw `ComponentFlow.Builder` without injecting and setting the environment `Terminal`, `ResourceLoader`, or `TemplateExecutor` dependencies, resulting in null values at runtime.
   - Removed `TuiComponentConfiguration.java` entirely. This restores Spring Shell's native `ComponentFlowAutoConfiguration` which registers a fully-configured `ComponentFlow.Builder` bean with correct dependencies pre-wired.
 
+### 8. Full-Screen Interactive Dashboard via Spring Shell TerminalUI
+- **TerminalUI Implementation**:
+  - Refactored the `dashboard` command to leverage Spring Shell's native view controls (`GridView`, `BoxView`, `ListView`).
+  - Added a multi-column split layout: Left sidebar for watchlist statistics and Profile summary, and Right panel showing scrollable, navigatable recommendations list.
+  - Implemented cell factory customization (`CustomListCell` extending `AbstractListCell`) utilizing JLine's color and style parameters for highlights.
+  - Mapped exit keys (`[q]` and `[Q]`) to invoke `.destroy()` on the event loop, ensuring clean restoration of standard terminal buffing.
+
 ---
 
 ## Verification & Validation Results
