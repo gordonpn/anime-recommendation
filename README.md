@@ -158,9 +158,8 @@ src/main/java/com/gordonpn/anime/
 |------|---------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Target architecture and refactoring roadmap |
 | [REFACTORING.md](REFACTORING.md) | Detailed code quality audit and prioritized fixes |
-| [GEMINI.md](GEMINI.md) | Design decisions, caching strategy, ranking rationale |
+| [AGENTS.md](AGENTS.md) | AI agent instructions, design decisions, implementation patterns |
 | [TODO.md](TODO.md) | Phased task list for implementation |
-| [AGENTS.md](AGENTS.md) | Instructions for AI coding agents |
 | [GITHUB_ACTIONS.md](GITHUB_ACTIONS.md) | CI/CD workflow recommendations |
 | [docs/](docs/) | Implementation plans and walkthroughs |
 
