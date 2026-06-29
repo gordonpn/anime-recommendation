@@ -2,6 +2,8 @@
 
 This document serves as a reference for expanding the anime recommendation engine's capabilities. It contains brainstorming details for probabilistic ranking models, CLI app expansions, and MyAnimeList API data integration opportunities.
 
+> **Status key:** ✅ Implemented &nbsp;&nbsp; 🔨 In Progress &nbsp;&nbsp; 💡 Planned &nbsp;&nbsp; 🆕 New Idea
+
 ---
 
 ## 1. Probabilistic Concepts for Recommendations
@@ -56,9 +58,10 @@ Here are several specific ways we can expand the command-line interface itself t
 4. **Format & Length Constraints (`--type` / `--max-episodes`):**
    * **Concept:** Limit recommendations based on the runtime format (e.g. movies only) or maximum series duration.
    * **CLI Command:** `recommendation --type movie` or `recommendation --max-episodes 13` (short-form shows).
-5. **Release Era Selector (`--min-year` / `--max-year`):**
+5. **Release Era Selector (`--min-year` / `--max-year`):** ✅
    * **Concept:** Filter suggestions by release decade to target retro/classic anime or focus only on recent releases.
-   * **CLI Command:** `recommendation --max-year 2005` (classic era discovery).
+   * **CLI Command:** `recommendation --min-year 2015 --max-year 2025`
+   * **Status:** Implemented in `RecommendationCommands` (Shell options) and `RecommendationFacade` lines 288–300. Candidates with unknown start years are skipped when a year filter is active.
 6. **Interactive Detail Explainer (`recommendation-detail <id>`):**
    * **Concept:** A separate command that displays details for a recommended show (synopsis, studio, MAL score) and prints the specific user recommendation comments showing why it matches your watched history.
    * **CLI Command:** `recommendation-detail 30015`
@@ -90,29 +93,32 @@ Looking at the MyAnimeList API v2 specs, we can leverage additional fields in ou
 
 ## 4. Additional Feature Ideas
 
-### A. Temporal Recommendation Decay (Completion Date)
+### A. Temporal Recommendation Decay (Completion Date) ✅
 * **Concept:** Recent shows in the user's completed list should influence recommendations more heavily than older shows, since taste evolves over time.
 * **Focus:** Weighs by **when the user watched** a show, not when it was released.
 * **Motivation:** User taste shifts over time; shows watched recently reflect current preferences better than shows watched years ago.
 * **Implementation:** Assign decay weights based on completion date; older shows have less influence on the recommendation signal.
-* **Formula:** `Signal Weight = Base Signal × exp(-λ × (Days Since Completion))` where λ controls decay rate.
-* **CLI Command:** `recommendation --decay-months 12` (only consider shows completed in the last year).
+* **Formula:** `Signal Weight = Base Signal × 2^(-t / decayMonths)` where t is elapsed months since completion.
+* **CLI Command:** `recommendation --decay-months 12` (half-life of 12 months).
+* **Status:** Implemented in `RecommendationFacade` lines 249–259. Completion dates sourced from `listStatus.updatedAt` (live API) or `UserAnimeListEntity.updatedAt` (local DB).
 * **Educational Value:** Time-series weighting, exponential decay modeling, and preference evolution.
 
-### A.1. Recency Weighting for Release Dates (Freshness Boost)
+### A.1. Recency Weighting for Release Dates (Freshness Boost) ✅
 * **Concept:** Recently **released** shows should rank higher in recommendations, independent of when the user watched related content.
 * **Focus:** Weighs by **when a candidate show was released**, not when the user watched something.
 * **Motivation:** Newer anime often have better production quality, reflect current cultural trends, and allow participation in real-time fandom discussions.
 * **Implementation:** Boost the score of candidate recommendations based on their release date; older shows gradually decrease in relative ranking.
-* **Formula:** `Release Boost = exp(-μ × (Years Since Release))` where μ controls the decay; typically μ ≈ 0.1–0.3 to provide a moderate boost.
+* **Formula:** `Release Boost = exp(-μ × yearsSinceRelease)` where μ is the freshness boost parameter and yearsSinceRelease = max(0, currentYear - startYear).
 * **CLI Command:** `recommendation --freshness-boost 0.5` (moderate boost for newer releases) or `--freshness-boost 0` (disable, recommend by relevance only).
+* **Status:** Implemented in `RecommendationFacade` lines 308–314. Applied at the candidate level after base score calculation.
 * **Example:** Two equally-relevant shows, one from 2024 and one from 2015, will rank the 2024 show higher when freshness boost is enabled.
 * **Educational Value:** Balancing relevance vs. discovery, temporal popularity signals, and content aging in ranking systems.
 
-### A.2. Hybrid Temporal Weighting
+### A.2. Hybrid Temporal Weighting ✅
 * **Concept:** Combine completion decay and release freshness to model both user taste evolution and content novelty.
 * **Combined Formula:** 
-  $$\text{Final Score} = \text{Base Relevance Score} \times \underbrace{\exp(-\lambda \times \text{Days Since User Completion})}_{\text{Taste Decay}} \times \underbrace{\exp(-\mu \times \text{Years Since Release})}_{\text{Freshness Boost}}$$
+  $$\text{Final Score} = \text{Base Relevance Score} \times \underbrace{2^{-t / \text{decayMonths}}}_{\text{Taste Decay}} \times \underbrace{\exp(-\mu \times \text{yearsSinceRelease})}_{\text{Freshness Boost}}$$
+* **Status:** Implemented. Taste decay is applied at the occurrence signal level (facade lines 249–259); freshness boost is applied at the final candidate score level (facade lines 308–314). Both parameters default to null (disabled) and prompt interactively when omitted.
 * **Behavior:** Recommendations will favor shows that are (1) recently completed by the user and (2) recently released, with independent control over each factor.
 
 ### B. Diversity Threshold
@@ -173,7 +179,49 @@ Looking at the MyAnimeList API v2 specs, we can leverage additional fields in ou
 * **Implementation:** Identify high-scoring shows that combine 2+ of the user's top genres in novel ways.
 * **CLI Command:** `recommendation --blend-genres` (prioritize cross-genre shows).
 
-### M. Content Warning & Spoiler Flagging
+### M. Content Warning & Spoiler Flagging 💡
 * **Concept:** Integrate content metadata (trigger warnings, spoiler indicators) to help users make informed choices.
 * **Implementation:** Use MAL's content rating and themes; flag shows with mature/dark themes.
 * **CLI Output:** Include optional flags in recommendation details: `[SPOILER: Ends a major arc]`, `[CONTENT: Gore/Violence]`.
+
+### N. Content Rating Filter (`--rating` / `--exclude-rating`) 🆕
+* **Concept:** Filter recommendations by MAL content rating (pg13, r, r+) to match user comfort level.
+* **Why:** `AnimeDetails.rating` is already deserialized from the MAL API but never consumed by the recommendation pipeline. A simple conditional skip in the candidate loop is all that's needed.
+* **CLI Command:** `recommendation --rating pg13` (safe-for-work only) or `recommendation --exclude-rating r+` (skip mature content).
+* **Effort:** ~1 hour. Same pattern as the existing `--minYear`/`--maxYear` filters in `RecommendationFacade`.
+
+### O. Studio Filter (`--studio`) 🆕
+* **Concept:** Filter recommendations to shows from a specific animation studio.
+* **Why:** `AnimeDetails.studios` (a `List<Studio>`) is fully mapped but unused. Users often develop studio loyalty (e.g., Kyoto Animation, Shaft, MAPPA, Ufotable).
+* **CLI Command:** `recommendation --studio "Kyoto Animation"` or `recommendation --studio Shaft`
+* **Effort:** ~1 hour. Add a conditional check in the candidate loop comparing `details.getStudios()` against the filter value.
+
+### P. Anime Search Command (`anime-search`) 🆕
+* **Concept:** Search for anime by title using the MAL API. Currently there is no way to discover anime IDs without leaving the CLI.
+* **Why:** The MAL API has a `/anime?q=<query>` endpoint. `AnimeService` already has the RestClient, retry logic, and JSON parsing infrastructure. This is a new `SearchCommands` Shell component + a `searchAnime()` method on `AnimeService`.
+* **CLI Command:** `anime-search "Steins;Gate"`, `anime-search --type tv "Attack on Titan"`, `anime-search --limit 10 "Monogatari"`
+* **Effort:** ~3 hours. New method + new command class + tests.
+
+### Q. Anime Detail Command (`anime-detail <id>`) 🆕
+* **Concept:** Print the full `AnimeDetails` for a specific anime ID in a readable format.
+* **Why:** `AnimeDetails` maps 30+ fields (synopsis, studios, genres, episodes, source material, related anime, etc.) but there's no command to view them. The data is already cached in `anime_cache`. This is purely a formatting exercise.
+* **CLI Command:** `anime-detail 9253`, `anime-detail --json 9253`
+* **Effort:** ~2 hours. New command + table formatter. No new API calls for cached entries.
+
+### R. Watch Order Guide (`watch-order <franchise>`) 🆕
+* **Concept:** For series with complex chronologies (Fate, Monogatari, Gundam, Fate/), generate a watch order by topologically sorting the franchise graph by relation type.
+* **Why:** The facade's BFS connected-components algorithm already traverses MAL's `related_anime` graph. A `WatchOrderService` would sort the component by relation type (prequel → sequel → parent_story → alternative_setting) rather than just grouping.
+* **CLI Command:** `watch-order "Monogatari Series"`, `watch-order --id 9253`
+* **Effort:** ~3 days. New service + new command. Leverages existing `AnimeService.getAnimeById()` and the `related_anime` graph traversal pattern.
+
+### S. Streaming Availability Check 🆕
+* **Concept:** Cross-reference recommendations against streaming service catalogs (Crunchyroll, Netflix, HIDIVE, etc.).
+* **Why:** The most common follow-up question after getting a recommendation is "where can I watch it?" MAL doesn't provide this data natively, so it would require a third-party dataset or API.
+* **CLI Command:** `recommendation --available-on crunchyroll`, `anime-detail 9253 --streaming`
+* **Effort:** ~1 week. Requires external data source integration. Best deferred until the core recommendation pipeline is fully refined.
+
+### T. Anime ID Mapping & Cross-Reference Cache 🆕
+* **Concept:** Maintain a local cross-reference table mapping MAL IDs ↔ AniList IDs to enable multi-source lookups and faster searches.
+* **Why:** Already planned in `ARCHITECTURE.md` Section 10 and `TODO.md` Phase 5. The `anime_id_mapping` table would allow the `anime-search` command to query AniList's faster GraphQL API and then resolve to MAL IDs for full recommendation details.
+* **Implementation:** New Flyway migration creating `anime_id_mapping` table, a `CrossReferenceService` with cache TTL, and integration into `anime-search`.
+* **Effort:** Part of the existing AniList integration plan (Phase 5).
