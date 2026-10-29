@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Task
         uses: go-task/setup-task@v2
@@ -50,6 +50,9 @@ jobs:
           echo "GRADLE_OPTS=-Dorg.gradle.java.home=${{ steps.setup-java-21.outputs.path }} -Dorg.gradle.java.installations.paths=${{ steps.setup-java-25.outputs.path }}" >> "$GITHUB_ENV"
 
       - name: Run tests with coverage
+        env:
+          MAL_CLIENT_ID: dummy-client-id
+          MAL_CLIENT_SECRET: dummy-client-secret
         run: task test
 
       - name: Upload coverage to Codecov
