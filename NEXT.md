@@ -1,6 +1,6 @@
 # Project Execution Queue
 
-**Last Refined:** 2026-10-20 10:05 EDT  
+**Last Refined:** 2026-10-28 22:35 EDT  
 **Repository:** [gordonpn/anime-recommendation](https://github.com/gordonpn/anime-recommendation)  
 **GitHub Backlog:** [View All Issues](https://github.com/gordonpn/anime-recommendation/issues)  
 
@@ -8,16 +8,17 @@
 
 ## NOW — Recommended Next Task
 
-### [#31: [Story] Add reproducible Java build and test CI](https://github.com/gordonpn/anime-recommendation/issues/31)
+### [#111: [Story] Port GitHub Actions workflows from shunt-shim and snaptally](https://github.com/gordonpn/anime-recommendation/issues/111)
 
-- **Status:** **IN REVIEW** (Pull Request [#110](https://github.com/gordonpn/anime-recommendation/pull/110) open; all 53 tests passing on Linux CI)
-- **Priority:** P0 (Critical Blocker)
-- **Effort:** S
-- **Readiness:** IN REVIEW
-- **Delivered implementation:**  
-  Created `.github/workflows/ci-build-test.yml` using `actions/checkout@v4`, `go-task/setup-task@v2`, Temurin JDK 25 and JDK 21 daemon toolchains with `cache: 'gradle'`, dynamic Linux `GRADLE_OPTS` configuration, and test report artifact archiving. Verified green on GitHub Actions (run `40798689636`).
+- **Status:** **READY**  
+- **Priority:** P1  
+- **Effort:** M  
+- **Readiness:** READY  
+- **Objective:**  
+  Port and adapt standard GitHub Actions workflows from `gordonpn/shunt-shim` and `gordonpn/snaptally` for security scanning (CodeQL `java-kotlin`), automated AI PR review bots (`deepseek-review.yml`, `pr-agent.yml`), workflow linting (`reviewdog/actionlint`), and test coverage reporting (JaCoCo + Codecov).
+- **Parent:** [#9: [Epic] Automate pull request quality gates](https://github.com/gordonpn/anime-recommendation/issues/9)  
 - **Tasks it unblocks:**  
-  Unblocks all pull request reviews and default branch protection ([#106](https://github.com/gordonpn/anime-recommendation/issues/106)), providing the quality gate for [#19](https://github.com/gordonpn/anime-recommendation/issues/19), [#108](https://github.com/gordonpn/anime-recommendation/issues/108), [#20](https://github.com/gordonpn/anime-recommendation/issues/20), and [#23](https://github.com/gordonpn/anime-recommendation/issues/23).
+  Completes automated PR quality gates under Epic [#9](https://github.com/gordonpn/anime-recommendation/issues/9), providing immediate automated review and regression protection for subsequent functional stories ([#19](https://github.com/gordonpn/anime-recommendation/issues/19), [#108](https://github.com/gordonpn/anime-recommendation/issues/108), [#20](https://github.com/gordonpn/anime-recommendation/issues/20), [#23](https://github.com/gordonpn/anime-recommendation/issues/23)).
 
 ---
 
@@ -52,7 +53,7 @@
 
 ## BLOCKERS
 
-- None. Pull request [#110](https://github.com/gordonpn/anime-recommendation/pull/110) has verified Linux build and test automation, ready for merge.
+- None. Pull request [#110](https://github.com/gordonpn/anime-recommendation/pull/110) merged to `main`, closing [#31](https://github.com/gordonpn/anime-recommendation/issues/31), [#89](https://github.com/gordonpn/anime-recommendation/issues/89), [#90](https://github.com/gordonpn/anime-recommendation/issues/90), and [#91](https://github.com/gordonpn/anime-recommendation/issues/91).
 
 ---
 
