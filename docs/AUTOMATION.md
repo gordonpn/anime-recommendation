@@ -30,7 +30,6 @@ Workflows in this repository are adapted from the automated quality gates and re
 - Emits review comments directly onto GitHub PRs for any workflow syntax or type issues.
 
 ### 4. AI Code and Architecture Reviewers
-- Both reviewers run only when a human marks a same-repository pull request as `ready_for_review`.
-- Draft PRs are skipped automatically to conserve API tokens and prevent noise during active development.
-- **DeepSeek Review:** Uses `hustcer/deepseek-review` to check correctness, boundary conditions, concurrency, and unverified assumptions.
-- **PR-Agent:** Runs the containerized `pragent/pr-agent` image configured by `.pr_agent.toml` using DeepSeek models to challenge unnecessary abstractions, premature complexity, and architecture regressions.
+- Reviewers trigger when a human marks a same-repository pull request as `ready_for_review`. Draft PRs are skipped automatically to conserve API tokens and prevent noise during active development.
+- **DeepSeek Review:** Runs exclusively on `ready_for_review` events using `hustcer/deepseek-review` to check correctness, boundary conditions, concurrency, and unverified assumptions.
+- **PR-Agent:** Runs on `ready_for_review` events and also responds to commands in `issue_comment` events posted by authorized collaborators (`OWNER`, `MEMBER`, `COLLABORATOR`). Configured via `.pr_agent.toml` using DeepSeek models to challenge unnecessary abstractions, premature complexity, and architecture regressions.
