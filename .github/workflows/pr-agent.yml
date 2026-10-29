@@ -33,6 +33,7 @@ jobs:
     steps:
       - name: PR Agent Action
         if: env.DEEPSEEK_API_KEY != ''
+        continue-on-error: true
         uses: docker://pragent/pr-agent:github_action@sha256:31b9aac6ab067bada9a0c1b001d30ebc500ea4487e00a93c18c59b9ef5fa66db
         env:
           CONFIG.MODEL: "deepseek/deepseek-v4-flash"

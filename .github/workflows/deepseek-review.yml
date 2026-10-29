@@ -23,9 +23,11 @@ jobs:
     steps:
       - name: DeepSeek Code Review
         if: env.DEEPSEEK_API_KEY != ''
+        continue-on-error: true
         uses: hustcer/deepseek-review@eccde2e9781008d795e366b951e313e37af88dd5 # v1
         with:
           chat-token: ${{ env.DEEPSEEK_API_KEY }}
+          model: deepseek-chat
           sys-prompt: |
             # Role
             Act as a skeptical correctness reviewer. Assume the implementation may be subtly wrong even if tests pass.
