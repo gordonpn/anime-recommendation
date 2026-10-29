@@ -310,7 +310,7 @@ git push origin v1.0.0
 1. **CI: Build & Test** (Implemented in PR #110)
    - Created `.github/workflows/ci-build-test.yml`
    - Configured with JDK 25 and JDK 21 Gradle daemon toolchains
-   - Runs `task test` and `task build`
+   - Runs `task test`
 
 2. **Code Quality** (1-2 hours)
    - Create `.github/workflows/code-quality.yml`
