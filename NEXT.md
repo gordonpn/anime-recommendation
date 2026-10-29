@@ -10,19 +10,14 @@
 
 ### [#31: [Story] Add reproducible Java build and test CI](https://github.com/gordonpn/anime-recommendation/issues/31)
 
+- **Status:** **IN REVIEW** (Pull Request [#110](https://github.com/gordonpn/anime-recommendation/pull/110) open; all 53 tests passing on Linux CI)
 - **Priority:** P0 (Critical Blocker)
 - **Effort:** S
-- **Readiness:** READY
-- **Why this task is next:**  
-  The repository currently has zero continuous integration (`.github/` is completely absent). Before implementing bug fixes or refactoring services, automated validation must run on every commit and PR across Linux runners using JDK 25 and JDK 21 daemon configurations.
-- **First implementation action:**  
-  Create `.github/workflows/ci.yml` using `actions/checkout@v4`, `actions/setup-java@v4` (Temurin JDK 25 and JDK 21), and step `./gradlew test --no-daemon`.
-- **Definition of Done:**  
-  - Given a pull request targeting `main` or a push to `main`, GitHub Actions executes all 53 automated unit and context tests.
-  - Test failure captures and uploads Gradle test reports as workflow artifacts.
-  - Workflows run without requiring access to private user credentials or live MAL tokens.
+- **Readiness:** IN REVIEW
+- **Delivered implementation:**  
+  Created `.github/workflows/ci-build-test.yml` using `actions/checkout@v4`, `go-task/setup-task@v2`, Temurin JDK 25 and JDK 21 daemon toolchains with `cache: 'gradle'`, dynamic Linux `GRADLE_OPTS` configuration, and test report artifact archiving. Verified green on GitHub Actions (run `40798689636`).
 - **Tasks it unblocks:**  
-  Unblocks all pull request reviews and default branch protection ([#106](https://github.com/gordonpn/anime-recommendation/issues/106)), providing the quality gate for [#19](https://github.com/gordonpn/anime-recommendation/issues/19), [#20](https://github.com/gordonpn/anime-recommendation/issues/20), and [#23](https://github.com/gordonpn/anime-recommendation/issues/23).
+  Unblocks all pull request reviews and default branch protection ([#106](https://github.com/gordonpn/anime-recommendation/issues/106)), providing the quality gate for [#19](https://github.com/gordonpn/anime-recommendation/issues/19), [#108](https://github.com/gordonpn/anime-recommendation/issues/108), [#20](https://github.com/gordonpn/anime-recommendation/issues/20), and [#23](https://github.com/gordonpn/anime-recommendation/issues/23).
 
 ---
 
@@ -57,8 +52,7 @@
 
 ## BLOCKERS
 
-- **Missing CI Automation ([#31](https://github.com/gordonpn/anime-recommendation/issues/31)):**  
-  No pull request quality gate currently exists. All subsequent implementation stories should branch off `main` and be verified via this workflow once merged.
+- None. Pull request [#110](https://github.com/gordonpn/anime-recommendation/pull/110) has verified Linux build and test automation, ready for merge.
 
 ---
 
